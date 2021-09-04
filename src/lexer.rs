@@ -1,5 +1,6 @@
 use crate::token;
 use lazy_static::lazy_static;
+use regex::Regex;
 use std::collections::HashMap;
 use std::collections::HashSet;
 enum State {
@@ -37,116 +38,60 @@ impl<'a> Lexer<'a> {
     }
   }
 
-  fn advance(&mut self, i: usize) {
-    self.source = &self.source[i..];
+  fn skip_by_captures(&mut self, captures: regex::Captures) {
+    let skip_str = captures.get(0).map_or("", |m| m.as_str());
+    self.move_by(skip_str.len());
   }
 
-  fn get_token(&mut self) -> token::Token<'a> {
-    let token_str = &self.source[..self.token.len() + 1];
-    self.advance(self.source.len());
-    token::get_token(token_str)
-  }
-
-  fn get_text_token(&mut self) -> token::Token<'a> {
-    let token_str = &self.source[..self.token.len() + 1];
-    self.advance(self.source.len());
-    token::Token::Text(token_str)
-  }
-
-  fn next_token(&mut self) -> Option<token::Token<'a>> {
-    self.token.clear();
-    self.escaped = false;
-    loop {
-      if let Some(char) = self.chars.next() {
-        match self.state {
-          State::BlockStart => {
-            if let Some(token) = self.further_block_start_token(char) {
-              self.state = State::Block;
-              return Some(token);
-            }
-          }
-          State::Block => {
-            if let Some(token) = self.further_block_token(char) {
-              return Some(token);
-            }
-          }
-          State::InlineJsx => {}
-          State::BlockJsx => {}
-          State::Import => {}
-          State::Export => {}
-        }
-      } else if !self.token.is_empty() {
-        return Some(self.get_token());
-      } else {
-        return None;
-      }
+  fn skip_whitespace(&mut self) {
+    lazy_static! {
+      static ref RE: Regex = Regex::new(r"^ *").unwrap();
     }
+    self.skip_by_captures(RE.captures(self.source).unwrap());
   }
 
-  fn gen_token(&mut self) -> Option<token::Token<'a>> {
-    if self.token.is_empty() {
-      return None;
+  fn skip_block_start_whitespace(&mut self) {
+    lazy_static! {
+      static ref RE: Regex = Regex::new(r"^ {0,3}").unwrap();
     }
-    if self.escaped {
-      Some(self.get_text_token())
-    } else {
-      Some(self.get_token())
-    }
+    self.skip_by_captures(RE.captures(self.source).unwrap());
   }
 
-  fn further_block_start_token(&mut self, char: char) -> Option<token::Token<'a>> {
-    match char {
-      ' ' => self.gen_token(),
-      '\n' => self.gen_token(),
-      _ => {
-        self.token.push(char);
-        return None;
-      }
-    }
-  }
-
-  fn further_block_token(&mut self, char: char) -> Option<token::Token<'a>> {
-    match char {
-      ' ' => self.gen_token(),
-      '\n' => {
-        self.state = State::BlockStart;
-        self.gen_token()
-      }
-      _ => {
-        self.token.push(char);
-        None
-      }
-    }
+  fn move_by(&mut self, size: usize) -> &'a str {
+    let result = &self.source[..size + 1];
+    self.source = &self.source[size + 1..];
+    result
   }
 }
 
-#[cfg(test)]
-mod tests {
-  use super::*;
+// #[cfg(test)]
+// mod tests {
+//   use super::*;
 
-  fn lexer(code: &str) -> Vec<token::Token> {
-    let mut lexer = Lexer::new(code);
-    let mut tokens = vec![];
-    loop {
-      if let Some(token) = lexer.next_token() {
-        tokens.push(token)
-      } else {
-        break;
-      }
-    }
-    tokens
-  }
-  #[test]
-  fn parse_1() {
-    println!("{}", "早n".find("n").unwrap());
-    assert_eq!(
-      lexer("# 123 #\n123"),
-      vec![
-        token::Token::Heading1,
-        token::Token::Text("123"),
-        token::Token::Heading1,
-        token::Token::Text("123"),
-      ]
-    );
-  }
-}
+//   fn lexer(code: &str) -> Vec<token::Token> {
+//     let mut lexer = Lexer::new(code);
+//     let mut tokens = vec![];
+//     loop {
+//       if let Some(token) = lexer.next_token() {
+//         tokens.push(token)
+//       } else {
+//         break;
+//       }
+//     }
+//     tokens
+//   }
+//   #[test]
+//   fn parse_1() {
+//     println!("{}", "早n".find("n").unwrap());
+//     println!("{}", '早'.len_utf8());
+//     assert_eq!(
+//       lexer("# 123 #\n123"),
+//       vec![
+//         token::Token::Heading1,
+//         token::Token::Text("123"),
+//         token::Token::Heading1,
+//         token::Token::Text("123"),
+//       ]
+//     );
+//   }
+// }
