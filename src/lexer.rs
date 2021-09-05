@@ -4,12 +4,11 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::collections::HashSet;
 enum State {
-  Import,
-  Export,
-  BlockStart,
   Block,
-  InlineJsx,
-  BlockJsx,
+  Inline,
+  CodeBlock,
+  JSXBlock,
+  JSXInline,
 }
 
 lazy_static! {
@@ -32,7 +31,7 @@ impl<'a> Lexer<'a> {
     Lexer {
       source,
       chars: source.chars(),
-      state: State::BlockStart,
+      state: State::Block,
       token: String::new(),
       escaped: false,
     }
@@ -61,6 +60,37 @@ impl<'a> Lexer<'a> {
     let result = &self.source[..size + 1];
     self.source = &self.source[size + 1..];
     result
+  }
+
+  fn move_by_str(&mut self, str: &'a str) -> &'a str {
+    self.move_by(str.len())
+  }
+
+  fn next_token(&mut self) -> Option<token::Token> {
+    if self.source.is_empty() {
+      None
+    } else {
+      match self.state {
+        State::Block => self.next_block_token(),
+        _ => None,
+      }
+    }
+  }
+
+  fn next_block_token(&mut self) -> Option<token::Token> {
+    self.state = State::Inline;
+    self.skip_block_start_whitespace();
+    lazy_static! {
+      static ref RE: Regex = Regex::new(r"^(?:[^ \n])*").unwrap();
+    }
+    let caps = RE.captures(self.source).unwrap();
+    let match_str = caps.get(0).map_or("", |m| m.as_str());
+    if let Some(token) = token::match_block_token(match_str) {
+      self.move_by_str(match_str);
+      Some(token)
+    } else {
+      self.next_token()
+    }
   }
 }
 
