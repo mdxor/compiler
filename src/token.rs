@@ -17,7 +17,7 @@ pub enum Token<'a> {
   Img(&'a str, &'a str),
   Link(&'a str, &'a str),
   Text(&'a str),
-  InlineCode,
+  CodeInline,
   JSXTag(&'a str),
   JSXAttribute(&'a str, &'a str),
   JSXText(&'a str),
