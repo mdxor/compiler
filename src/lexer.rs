@@ -24,23 +24,27 @@ impl<'a> Lexer<'a> {
     }
   }
 
-  fn skip_by_captures(&mut self, captures: regex::Captures) {
-    let skip_str = captures.get(0).map_or("", |m| m.as_str());
-    self.move_by(skip_str.len());
+  fn skip_by_regex(&mut self, regex: &regex::Regex) {
+    if let Some(caps) = regex.captures(self.source) {
+      let skip_str = caps.get(0).map_or("", |m| m.as_str());
+      if !skip_str.is_empty() {
+        self.move_by(skip_str.len());
+      }
+    }
   }
 
   fn skip_whitespace(&mut self) {
     lazy_static! {
       static ref RE: Regex = Regex::new(r"^ *").unwrap();
     }
-    self.skip_by_captures(RE.captures(self.source).unwrap());
+    self.skip_by_regex(&*RE);
   }
 
   fn skip_block_start_whitespace(&mut self) {
     lazy_static! {
       static ref RE: Regex = Regex::new(r"^ {0,3}").unwrap();
     }
-    self.skip_by_captures(RE.captures(self.source).unwrap());
+    self.skip_by_regex(&*RE);
   }
 
   fn move_by(&mut self, size: usize) -> &'a str {
@@ -138,6 +142,7 @@ mod tests {
   }
   #[test]
   fn parse_1() {
+    let re = regex::Regex::new(r"abc").unwrap();
     assert_eq!(
       lexer("# 123\n123"),
       vec![
