@@ -91,7 +91,6 @@ impl<'a> Lexer<'a> {
     let mut chars = self.source.chars();
     let mut token_size: usize = 0;
     let mut escaped = false;
-    let mut is_text = false;
     loop {
       if let Some(char) = chars.next() {
         if escaped {
@@ -122,6 +121,8 @@ impl<'a> Lexer<'a> {
       None
     }
   }
+
+  fn scan_jsx(&mut self, is_inline: bool) {}
 }
 
 #[cfg(test)]

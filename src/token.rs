@@ -18,10 +18,9 @@ pub enum Token<'a> {
   Link(&'a str, &'a str),
   Text(&'a str),
   CodeInline,
-  JSXTag(&'a str),
-  JSXAttribute(&'a str, &'a str),
-  JSXText(&'a str),
   TableVerticalBar,
+  // jsx
+  JSX(&'a str),
 }
 
 pub fn match_block_token(token: &str) -> Option<Token> {
