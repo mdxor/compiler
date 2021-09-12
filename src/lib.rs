@@ -5,6 +5,7 @@ use wasm_bindgen::prelude::*;
 // mod ast;
 // mod block;
 // mod inline;
+mod jsx;
 mod lexer;
 mod token;
 // mod parse;

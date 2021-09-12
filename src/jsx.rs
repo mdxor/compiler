@@ -45,6 +45,7 @@ struct JSXExpression<'a> {
 enum JSXChild<'a> {
   Node(JSXNode<'a>),
   Expression(JSXExpression<'a>),
+  Text(&'a str),
 }
 
 pub struct JSXParser<'a> {
@@ -67,20 +68,17 @@ impl<'a> JSXParser<'a> {
   }
 
   pub fn parse(&mut self) -> Result<JSXNode, &'a str> {
+    self.skip();
     self.scan_jsx_node()
   }
 
-  fn scan_jsx_node(&mut self) -> Result<JSXNode, &'a str> {
-    self.skip();
+  fn scan_jsx_node(&mut self) -> Result<JSXNode<'a>, &'a str> {
     if self.cur_source().starts_with("<") {
       self.move_by_size(1);
       let tag_name = self.scan_jsx_tag()?;
       let attrs = self.scan_jsx_attributes()?;
       let children = self.scan_jsx_children()?;
-      let end_tag_name = self.scan_jsx_end_tag()?;
-      if tag_name != end_tag_name {
-        return Err("");
-      }
+      self.scan_jsx_end_tag(tag_name)?;
       Ok(JSXNode {
         name: tag_name,
         attrs,
@@ -91,13 +89,16 @@ impl<'a> JSXParser<'a> {
     }
   }
 
-  fn scan_jsx_end_tag(&mut self) -> Result<&'a str, &'a str> {
+  fn scan_jsx_end_tag(&mut self, expected_tag_name: &str) -> Result<(), &'a str> {
     let end_tag_name = self.scan_jsx_tag()?;
+    if end_tag_name != expected_tag_name {
+      return Err("");
+    }
     self.skip();
     if !self.cur_source().starts_with(">") {
       return Err("");
     }
-    Ok(end_tag_name)
+    Ok(())
   }
 
   fn scan_jsx_tag(&mut self) -> Result<&'a str, &'a str> {
@@ -164,7 +165,7 @@ impl<'a> JSXParser<'a> {
     if self.cur_source().starts_with("{") {
       self.move_by_size(1);
       let spread_expression = self.scan_jsx_attribute_spread_expression()?;
-      Ok(JSXAttr::SpreadExpression(spread_expression))
+      Ok(spread_expression)
     } else if let Some(caps) = ATTR_KEY_REGEX.captures(self.cur_source()) {
       let attr_key_size = caps.get(0).unwrap().as_str().len();
       let attr_key = self.move_by_size(attr_key_size);
@@ -190,7 +191,7 @@ impl<'a> JSXParser<'a> {
     }
   }
 
-  fn scan_jsx_attribute_spread_expression(&mut self) -> Result<&'a str, &'a str> {
+  fn scan_jsx_attribute_spread_expression(&mut self) -> Result<JSXAttr<'a>, &'a str> {
     Err("")
   }
 
@@ -209,13 +210,13 @@ impl<'a> JSXParser<'a> {
       endCharOption = Some('\'');
     }
     if let Some(endChar) = endCharOption {
-      let string = self.scan_jsx_value_string(endChar)?;
-      return Ok(JSXAttrValue::String(string));
+      let value = self.scan_jsx_value_string(endChar)?;
+      return Ok(value);
     }
     Err("")
   }
 
-  fn scan_jsx_value_string(&mut self, endChar: char) -> Result<&'a str, &'a str> {
+  fn scan_jsx_value_string(&mut self, endChar: char) -> Result<JSXAttrValue<'a>, &'a str> {
     let mut size = 0;
     let mut escaped = false;
     let mut chars = self.cur_source().chars();
@@ -250,7 +251,7 @@ impl<'a> JSXParser<'a> {
     }
     let string = self.move_by_size(size);
     self.move_by_size(1);
-    return Ok(string);
+    return Ok(JSXAttrValue::String(string));
   }
 
   fn scan_jsx_expression(&mut self) -> Result<JSXExpression<'a>, &'a str> {
@@ -260,10 +261,40 @@ impl<'a> JSXParser<'a> {
   fn scan_jsx_children(&mut self) -> Result<Vec<JSXChild<'a>>, &'a str> {
     let mut children = vec![];
     loop {
-      if self.cur_source().starts_with("</") {
+      let cur_source = self.cur_source();
+      if cur_source.starts_with("</") {
         self.move_by_size(2);
         return Ok(children);
+      } else if cur_source.starts_with("<") {
+        let child = self.scan_jsx_node()?;
+        children.push(JSXChild::Node(child));
+      } else if cur_source.starts_with("{") {
+        let expression = self.scan_jsx_expression()?;
+        children.push(JSXChild::Expression(expression));
+      } else {
+        children.push(self.scan_jsx_text_child()?);
       }
+    }
+    Err("")
+  }
+
+  fn scan_jsx_text_child(&mut self) -> Result<JSXChild<'a>, &'a str> {
+    let mut chars = self.cur_source().chars();
+    let mut size = 0;
+    loop {
+      if let Some(char) = chars.next() {
+        match char {
+          '<' | '{' => break,
+          _ => {
+            size += char.len_utf8();
+          }
+        }
+      } else {
+        return Err("");
+      }
+    }
+    if size > 0 {
+      return Ok(JSXChild::Text(self.move_by_size(size)));
     }
     Err("")
   }
