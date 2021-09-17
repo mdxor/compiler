@@ -1,32 +1,38 @@
 use lazy_static::lazy_static;
 use regex::Regex;
+#[cfg(test)]
+use serde::Serialize;
 pub fn is_match_jsx(source: &str) -> bool {
   lazy_static! {
-    static ref RE: Regex =
+    static ref JSX_REGEX: Regex =
       Regex::new(r"^<( *)([\p{L}\p{Nl}$_][\p{L}\p{Nl}$\p{Mn}\p{Mc}\p{Nd}\p{Pc}]*)").unwrap();
   }
-  RE.is_match(source)
+  JSX_REGEX.is_match(source)
 }
 
 #[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
 enum JSXAttrValue<'a> {
   String(&'a str),
   Expression(JSXExpression<'a>),
 }
 
 #[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
 struct JSXKeyValueAttr<'a> {
   key: &'a str,
   value: JSXAttrValue<'a>,
 }
 
 #[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
 enum JSXAttr<'a> {
   KeyValue(JSXKeyValueAttr<'a>),
-  SpreadExpression(&'a str),
+  SpreadExpression(JSXExpression<'a>),
 }
 
 #[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
 struct JSXNode<'a> {
   name: &'a str,
   attrs: Vec<JSXAttr<'a>>,
@@ -34,17 +40,20 @@ struct JSXNode<'a> {
 }
 
 #[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
 enum JSXExpressionChild<'a> {
   Code(&'a str),
   Node(JSXNode<'a>),
 }
 
 #[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
 struct JSXExpression<'a> {
   children: Vec<JSXExpressionChild<'a>>,
 }
 
 #[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
 enum JSXChild<'a> {
   Node(JSXNode<'a>),
   Expression(JSXExpression<'a>),
@@ -68,10 +77,10 @@ impl<'a> JSXParser<'a> {
     }
   }
 
-  pub fn parse(&mut self) -> Result<(JSXNode<'a>, usize), &'a str> {
+  pub fn parse(&mut self) -> Result<JSXNode<'a>, &'a str> {
     self.skip();
     let node = self.scan_jsx_node()?;
-    Ok((node, self.size))
+    Ok(node)
   }
 
   fn scan_jsx_node(&mut self) -> Result<JSXNode<'a>, &'a str> {
@@ -119,11 +128,17 @@ impl<'a> JSXParser<'a> {
   }
 
   fn skip(&mut self) {
-    // TODO
     lazy_static! {
-      static ref WHITESPACE_REGEX: Regex = Regex::new(r"^ *").unwrap();
+      static ref INLINE_SKIP_REGEX: Regex = Regex::new("^ *").unwrap();
     }
-    if let Some(caps) = WHITESPACE_REGEX.captures(&self.source[self.size..]) {
+    lazy_static! {
+      static ref BLOCK_SKIP_REGEX: Regex = Regex::new(r"^ *(\n *)?").unwrap();
+    }
+    let mut regex = &*BLOCK_SKIP_REGEX;
+    if self.inline {
+      regex = &*INLINE_SKIP_REGEX;
+    }
+    if let Some(caps) = regex.captures(&self.source[self.size..]) {
       let size = caps.get(0).unwrap().as_str().len();
       self.size += size;
     }
@@ -162,7 +177,6 @@ impl<'a> JSXParser<'a> {
 
     // <H1 {...attrs}>
     if self.cur_source().starts_with("{") {
-      self.move_by_size(1);
       let spread_expression = self.scan_jsx_attribute_spread_expression()?;
       Ok(spread_expression)
     } else if let Some(caps) = ATTR_KEY_REGEX.captures(self.cur_source()) {
@@ -191,7 +205,15 @@ impl<'a> JSXParser<'a> {
   }
 
   fn scan_jsx_attribute_spread_expression(&mut self) -> Result<JSXAttr<'a>, &'a str> {
-    Err("")
+    lazy_static! {
+      static ref SPREAD_EXPRESSION_REGEX: Regex = Regex::new(r"^{ *[.]{3}").unwrap();
+    }
+    if SPREAD_EXPRESSION_REGEX.is_match(self.cur_source()) {
+      let expression = self.scan_jsx_expression()?;
+      Ok(JSXAttr::SpreadExpression(expression))
+    } else {
+      Err("")
+    }
   }
 
   fn scan_jsx_value(&mut self) -> Result<JSXAttrValue<'a>, &'a str> {
@@ -368,86 +390,22 @@ impl<'a> JSXParser<'a> {
 mod tests {
   use super::*;
 
-  fn parse(source: &str) -> Result<(JSXNode, usize), &str> {
+  fn parse(source: &str) -> Result<JSXNode, &str> {
     let mut jsx_parser = JSXParser::new(source, 0, true);
     jsx_parser.parse()
   }
   #[test]
-  fn parse_empty_div() {
-    assert_eq!(
-      parse("<div></div>").unwrap(),
-      (
-        JSXNode {
-          name: "div",
-          attrs: vec![],
-          children: vec![],
-        },
-        11
-      )
-    );
-  }
-  #[test]
-  fn parse_nested_div() {
-    assert_eq!(
-      parse(r#"<div test="true">中文测试<div>en</div></div>"#).unwrap(),
-      (
-        JSXNode {
-          name: "div",
-          attrs: vec![JSXAttr::KeyValue(JSXKeyValueAttr {
-            key: "test",
-            value: JSXAttrValue::String("true")
-          })],
-          children: vec![
-            JSXChild::Text("中文测试"),
-            JSXChild::Node(JSXNode {
-              name: "div",
-              attrs: vec![],
-              children: vec![JSXChild::Text("en"),],
-            })
-          ],
-        },
-        48
-      )
-    );
-  }
-  #[test]
-  fn parse_complex() {
-    assert_eq!(
-      parse(r#"<div test="true" content={() => <span>content</span>}>中文测试<div>en</div></div>"#)
-        .unwrap(),
-      (
-        JSXNode {
-          name: "div",
-          attrs: vec![
-            JSXAttr::KeyValue(JSXKeyValueAttr {
-              key: "test",
-              value: JSXAttrValue::String("true")
-            }),
-            JSXAttr::KeyValue(JSXKeyValueAttr {
-              key: "content",
-              value: JSXAttrValue::Expression(JSXExpression {
-                children: vec![
-                  JSXExpressionChild::Code("() => "),
-                  JSXExpressionChild::Node(JSXNode {
-                    name: "span",
-                    attrs: vec![],
-                    children: vec![JSXChild::Text("content")]
-                  })
-                ]
-              })
-            })
-          ],
-          children: vec![
-            JSXChild::Text("中文测试"),
-            JSXChild::Node(JSXNode {
-              name: "div",
-              attrs: vec![],
-              children: vec![JSXChild::Text("en"),],
-            })
-          ],
-        },
-        85
-      )
-    );
+  fn test_jsx_parse() {
+    let cases = vec![
+      "<div></div>",
+      r#"<div test="true">中文测试<div>en</div></div>"#,
+      r#"<div test="true" content={() => <span>content</span>}>中文测试<div>en</div></div>"#,
+    ];
+    let mut results = vec![];
+    for case in &cases {
+      let result = parse(case);
+      results.push(result)
+    }
+    insta::assert_yaml_snapshot!(results);
   }
 }
