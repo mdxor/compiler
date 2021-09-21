@@ -88,6 +88,24 @@ impl<'a> JSXParser<'a> {
       self.move_by_size(1);
       let tag_name = self.scan_jsx_tag()?;
       let attrs = self.scan_jsx_attributes()?;
+      if self.cur_source().starts_with("/") {
+        self.move_by_size(1);
+        self.skip();
+        if !self.cur_source().starts_with(">") {
+          return Err("");
+        }
+        self.move_by_size(1);
+
+        return Ok(JSXNode {
+          name: tag_name,
+          attrs,
+          children: vec![],
+        });
+      } else if !self.cur_source().starts_with(">") {
+        return Err("");
+      }
+
+      self.move_by_size(1);
       let children = self.scan_jsx_children()?;
       self.scan_jsx_end_tag(tag_name)?;
       Ok(JSXNode {
@@ -158,8 +176,7 @@ impl<'a> JSXParser<'a> {
     let mut attrs = vec![];
     loop {
       self.skip();
-      if self.cur_source().starts_with(">") {
-        self.move_by_size(1);
+      if self.cur_source().starts_with(">") || self.cur_source().starts_with("/") {
         return Ok(attrs);
       }
       let attr = self.scan_jsx_attribute()?;
@@ -169,7 +186,6 @@ impl<'a> JSXParser<'a> {
   }
 
   fn scan_jsx_attribute(&mut self) -> Result<JSXAttr<'a>, &'a str> {
-    // TODO: spread attr
     lazy_static! {
       static ref ATTR_KEY_REGEX: Regex =
         Regex::new(r"^[\p{L}\p{Nl}$_][\p{L}\p{Nl}$\p{Mn}\p{Mc}\p{Nd}\p{Pc}]*").unwrap();
