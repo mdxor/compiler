@@ -33,7 +33,7 @@ enum JSXAttr<'a> {
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
-struct JSXNode<'a> {
+pub struct JSXNode<'a> {
   name: &'a str,
   attrs: Vec<JSXAttr<'a>>,
   children: Vec<JSXChild<'a>>,
@@ -156,7 +156,7 @@ impl<'a> JSXParser<'a> {
     if self.inline {
       regex = &*INLINE_SKIP_REGEX;
     }
-    if let Some(caps) = regex.captures(&self.source[self.size..]) {
+    if let Some(caps) = regex.captures(self.cur_source()) {
       let size = caps.get(0).unwrap().as_str().len();
       self.size += size;
     }

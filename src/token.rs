@@ -1,3 +1,4 @@
+use crate::jsx;
 #[derive(Debug, PartialEq)]
 pub enum Token<'a> {
   // block
@@ -8,7 +9,7 @@ pub enum Token<'a> {
   Heading5,
   Heading6,
   Newline,
-  CodeBlock,
+  CodeBlock(&'a str),
   BulletList,
   OrderedList,
   TaskList,
@@ -17,21 +18,8 @@ pub enum Token<'a> {
   Img(&'a str, &'a str),
   Link(&'a str, &'a str),
   Text(&'a str),
-  CodeInline,
+  CodeInline(&'a str),
   TableVerticalBar,
   // jsx
-  JSX(&'a str),
-}
-
-pub fn match_block_token(token: &str) -> Option<Token> {
-  match &*token {
-    "#" => Some(Token::Heading1),
-    "##" => Some(Token::Heading2),
-    "###" => Some(Token::Heading3),
-    "####" => Some(Token::Heading4),
-    "#####" => Some(Token::Heading5),
-    "######" => Some(Token::Heading6),
-    "```" => Some(Token::CodeBlock),
-    _ => None,
-  }
+  JSX(jsx::JSXNode<'a>),
 }
