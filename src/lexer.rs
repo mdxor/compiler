@@ -11,15 +11,6 @@ impl<'a> Lexer<'a> {
     Lexer { source }
   }
 
-  fn skip_by_regex(&mut self, regex: &regex::Regex) {
-    if let Some(caps) = regex.captures(self.source) {
-      let skip_str = caps.get(0).map_or("", |m| m.as_str());
-      if !skip_str.is_empty() {
-        self.move_by(skip_str.len());
-      }
-    }
-  }
-
   fn skip_whitespace(&mut self) {
     lazy_static! {
       static ref WHITESPACE_REGEX: Regex = Regex::new("^ *").unwrap();
@@ -30,21 +21,15 @@ impl<'a> Lexer<'a> {
     }
   }
 
-  fn skip_block_start_whitespace(&mut self) {
-    lazy_static! {
-      static ref RE: Regex = Regex::new(r"^ {0,3}").unwrap();
-    }
-    self.skip_by_regex(&*RE);
-  }
-
   fn move_by(&mut self, size: usize) -> &'a str {
     let result = &self.source[..size];
     self.source = &self.source[size..];
     result
   }
 
-  fn tokenize(&mut self) -> Result<Vec<token::Token>, &'a str> {
-    Err("")
+  fn tokenize(&mut self) -> Result<Vec<token::BlockToken>, &'a str> {
+    let mut tokens = vec![];
+    Ok(tokens)
   }
 
   fn scan_jsx(&mut self, is_inline: bool) {}
