@@ -5,8 +5,8 @@ use serde::Serialize;
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
 pub struct Heading<'a> {
-  level: u8,
-  content: Vec<InlineBlock<'a>>,
+  pub level: u8,
+  pub content: Vec<InlineBlock<'a>>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -14,7 +14,10 @@ pub struct Heading<'a> {
 pub enum BlockToken<'a> {
   Heading(Heading<'a>),
   Newline,
-  Code(&'a str),
+  // single line code
+  SCode(&'a str),
+  // multi line code
+  MCode(&'a str),
   // TODO: list & table
   BulletList,
   OrderedList,

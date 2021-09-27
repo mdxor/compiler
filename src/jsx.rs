@@ -64,7 +64,7 @@ pub struct JSXParser<'a> {
   source: &'a str,
   inline: bool,
   offset: usize,
-  size: usize,
+  pub size: usize,
 }
 
 impl<'a> JSXParser<'a> {
