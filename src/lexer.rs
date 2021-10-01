@@ -31,17 +31,18 @@ impl<'a> Lexer<'a> {
     result
   }
 
-  fn tokenize(&mut self) -> Result<Vec<token::BlockToken>, &'a str> {
-    let mut tokens = vec![];
+  fn tokenize(&mut self) -> Result<token::AST<'a>, &'a str> {
+    let mut blocks = vec![];
     loop {
       if self.source.is_empty() {
         break;
       } else {
         let token = self.scan_block_token()?;
-        tokens.push(token);
+        blocks.push(token);
       }
     }
-    Ok(tokens)
+    let ast = token::AST { blocks };
+    Ok(ast)
   }
 
   fn scan_block_token(&mut self) -> Result<token::BlockToken<'a>, &'a str> {
@@ -99,5 +100,26 @@ impl<'a> Lexer<'a> {
     let jsx_node = jsx_parser.parse();
     self.move_by(jsx_parser.size);
     jsx_node
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  fn parse(source: &str) -> Result<token::AST, &str> {
+    let mut lex = Lexer::new(source);
+    let ast = lex.tokenize();
+    ast
+  }
+  #[test]
+  fn test_lexer_parse() {
+    let cases = vec!["    abc", "    <div></div>"];
+    let mut results = vec![];
+    for case in &cases {
+      let result = parse(case);
+      results.push(result)
+    }
+    insta::assert_yaml_snapshot!(results);
   }
 }

@@ -1,0 +1,12 @@
+---
+source: src/lexer.rs
+expression: results
+
+---
+- Ok:
+    blocks:
+      - SCode: abc
+- Ok:
+    blocks:
+      - SCode: "<div></div>"
+

@@ -4,6 +4,12 @@ use serde::Serialize;
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
+pub struct AST<'a> {
+  pub blocks: Vec<BlockToken<'a>>,
+}
+
+#[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
 pub struct Heading<'a> {
   pub level: u8,
   pub content: Vec<InlineBlock<'a>>,
