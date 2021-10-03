@@ -5,7 +5,7 @@ use serde::Serialize;
 pub fn is_match_jsx(source: &str) -> bool {
   lazy_static! {
     static ref JSX_REGEX: Regex =
-      Regex::new(r"^<( *)([\p{L}\p{Nl}$_][\p{L}\p{Nl}$\p{Mn}\p{Mc}\p{Nd}\p{Pc}]*)").unwrap();
+      Regex::new(r"^< *[\p{L}\p{Nl}$_][\p{L}\p{Nl}$\p{Mn}\p{Mc}\p{Nd}\p{Pc}]*(\.[\p{L}\p{Nl}$_][\p{L}\p{Nl}$\p{Mn}\p{Mc}\p{Nd}\p{Pc}]*)*").unwrap();
   }
   JSX_REGEX.is_match(source)
 }
@@ -134,14 +134,13 @@ impl<'a> JSXParser<'a> {
   fn scan_jsx_tag(&mut self) -> Result<&'a str, &'a str> {
     lazy_static! {
       static ref JSX_TAG_REGEX: Regex =
-        Regex::new(r"^[\p{L}\p{Nl}$_][\p{L}\p{Nl}$\p{Mn}\p{Mc}\p{Nd}\p{Pc}]*").unwrap();
+        Regex::new(r"^[\p{L}\p{Nl}$_][\p{L}\p{Nl}$\p{Mn}\p{Mc}\p{Nd}\p{Pc}]*(\.[\p{L}\p{Nl}$_][\p{L}\p{Nl}$\p{Mn}\p{Mc}\p{Nd}\p{Pc}]*)*").unwrap();
     }
     if let Some(caps) = JSX_TAG_REGEX.captures(&self.source[self.size..]) {
       let size = caps.get(0).unwrap().as_str().len();
       Ok(self.move_by_size(size))
     } else {
-      // TODO
-      Err("error")
+      Ok(self.move_by_size(0))
     }
   }
 
@@ -416,6 +415,9 @@ mod tests {
       "<div></div>",
       r#"<div test="true">中文测试<div>en</div></div>"#,
       r#"<div test="true" content={() => <span>content</span>}>中文测试<div>en</div></div>"#,
+      "<React.Fragment></React.Fragment>",
+      "<></>",
+      "<SelfClosed />",
     ];
     let mut results = vec![];
     for case in &cases {

@@ -46,4 +46,16 @@ expression: results
           attrs: []
           children:
             - Text: en
+- Ok:
+    name: React.Fragment
+    attrs: []
+    children: []
+- Ok:
+    name: ""
+    attrs: []
+    children: []
+- Ok:
+    name: SelfClosed
+    attrs: []
+    children: []
 
