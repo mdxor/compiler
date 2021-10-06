@@ -58,6 +58,7 @@ impl<'a> Lexer<'a> {
         let size = caps.get(1).unwrap().as_str().len();
         self.move_by(size);
         return self.scan_heading(size as u8);
+      } else if self.source.starts_with("```") {
       }
     }
     Err("")

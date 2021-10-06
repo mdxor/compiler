@@ -17,13 +17,20 @@ pub struct Heading<'a> {
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
+pub struct MCode<'a> {
+  language: &'a str,
+  metastring: &'a str,
+}
+
+#[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
 pub enum BlockToken<'a> {
   Heading(Heading<'a>),
   Newline,
   // single line code
   SCode(&'a str),
   // multi line code
-  MCode(&'a str),
+  MCode(MCode<'a>),
   // TODO: list & table
   BulletList,
   OrderedList,
