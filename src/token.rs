@@ -18,8 +18,9 @@ pub struct Heading<'a> {
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
 pub struct MCode<'a> {
-  language: &'a str,
-  metastring: &'a str,
+  pub code: &'a str,
+  pub language: &'a str,
+  pub metastring: &'a str,
 }
 
 #[derive(Debug, PartialEq)]

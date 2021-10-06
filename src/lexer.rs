@@ -59,6 +59,7 @@ impl<'a> Lexer<'a> {
         self.move_by(size);
         return self.scan_heading(size as u8);
       } else if self.source.starts_with("```") {
+        return Ok(self.scan_multiple_line_code());
       }
     }
     Err("")
@@ -74,7 +75,7 @@ impl<'a> Lexer<'a> {
     Ok(vec![])
   }
 
-  fn scan_by_end_char(&mut self, end_char: char) -> &'a str {
+  fn scan_single_line_by_end_char(&mut self, end_char: char) -> &'a str {
     let mut size = 0;
     let mut chars = self.source.chars();
     loop {
@@ -85,15 +86,53 @@ impl<'a> Lexer<'a> {
           size += char.len_utf8();
         }
       } else {
-        break;
+        return self.move_by(size);
       }
     }
-    self.move_by(size)
+    self.move_by(size + 1)
   }
 
   fn scan_single_line_code(&mut self) -> token::BlockToken<'a> {
-    let code = self.scan_by_end_char('\n');
+    let code = self.scan_single_line_by_end_char('\n');
     token::BlockToken::SCode(code)
+  }
+
+  fn scan_multiple_line_code(&mut self) -> token::BlockToken<'a> {
+    lazy_static! {
+      static ref CODE_END_REGEX: Regex = Regex::new(r"(^ {0,3}|\n {0,3})``` *\n?").unwrap();
+    }
+    self.move_by(3);
+    let mut language = "";
+    let mut metastring = "";
+    let mut code = "";
+
+    self.skip_whitespace();
+    let mut code_info = self.scan_single_line_by_end_char('\n');
+    if code_info.ends_with("\n") {
+      code_info = &code_info[..code_info.len() - 1];
+    }
+    if !code_info.is_empty() {
+      if let Some(index) = code_info.find(" ") {
+        language = &code_info[0..index].trim();
+        metastring = &code_info[index..].trim_start();
+      } else {
+        language = code_info.trim();
+      }
+    }
+
+    if let Some(captures) = CODE_END_REGEX.captures(self.source) {
+      let end_token = captures.get(0).unwrap().as_str();
+      let code_size = self.source.find(end_token).unwrap();
+      code = self.move_by(code_size);
+      self.move_by(end_token.len());
+    } else {
+      code = self.move_by(self.source.len());
+    }
+    token::BlockToken::MCode(token::MCode {
+      code,
+      language,
+      metastring,
+    })
   }
 
   fn scan_jsx(&mut self, is_inline: bool) -> Result<jsx::JSXNode<'a>, &'a str> {
@@ -115,7 +154,13 @@ mod tests {
   }
   #[test]
   fn test_lexer_parse() {
-    let cases = vec!["    abc", "    <div></div>"];
+    let cases = vec![
+      "    abc",
+      "    <div></div>",
+      "```\ncode\n```",
+      "```jsx\nlet a = 11;\n```",
+      "```jsx meta\nlet a = 11;\n```",
+    ];
     let mut results = vec![];
     for case in &cases {
       let result = parse(case);
