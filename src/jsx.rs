@@ -181,7 +181,6 @@ impl<'a> JSXParser<'a> {
       let attr = self.scan_jsx_attribute()?;
       attrs.push(attr);
     }
-    Err("")
   }
 
   fn scan_jsx_attribute(&mut self) -> Result<JSXAttr<'a>, &'a str> {
@@ -237,23 +236,23 @@ impl<'a> JSXParser<'a> {
       let expression = self.scan_jsx_expression()?;
       return Ok(JSXAttrValue::Expression(expression));
     }
-    let mut endCharOption: Option<char> = None;
+    let mut end_char_option: Option<char> = None;
     if self.cur_source().starts_with("\"") {
-      endCharOption = Some('"');
+      end_char_option = Some('"');
     }
     if self.cur_source().starts_with("'") {
-      endCharOption = Some('\'');
+      end_char_option = Some('\'');
     }
-    if let Some(endChar) = endCharOption {
-      let value = self.scan_jsx_value_string(endChar)?;
+    if let Some(end_char) = end_char_option {
+      let value = self.scan_jsx_value_string(end_char)?;
       return Ok(value);
     }
     Err("")
   }
 
-  fn scan_jsx_value_string(&mut self, endChar: char) -> Result<JSXAttrValue<'a>, &'a str> {
+  fn scan_jsx_value_string(&mut self, end_char: char) -> Result<JSXAttrValue<'a>, &'a str> {
     let mut size = 0;
-    self.move_by_size(endChar.len_utf8());
+    self.move_by_size(end_char.len_utf8());
     let mut chars = self.cur_source().chars();
 
     loop {
@@ -263,7 +262,7 @@ impl<'a> JSXParser<'a> {
             return Err("");
           }
           _ => {
-            if char == endChar {
+            if char == end_char {
               break;
             } else {
               size += 1;
@@ -376,7 +375,6 @@ impl<'a> JSXParser<'a> {
         children.push(self.scan_jsx_text_child()?);
       }
     }
-    Err("")
   }
 
   fn scan_jsx_text_child(&mut self) -> Result<JSXChild<'a>, &'a str> {
