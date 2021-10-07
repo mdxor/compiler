@@ -27,4 +27,36 @@ expression: results
           code: let a = 11;
           language: jsx
           metastring: meta
+- Ok:
+    blocks:
+      - Heading:
+          level: 1
+          content:
+            - Text: "123"
+- Ok:
+    blocks:
+      - Heading:
+          level: 6
+          content:
+            - Text: "123"
+- Ok:
+    blocks:
+      - Paragraph:
+          content:
+            - Text: "#123"
+- Ok:
+    blocks:
+      - Paragraph:
+          content:
+            - Text: "####### 123"
+- Ok:
+    blocks:
+      - Heading:
+          level: 4
+          content:
+            - Text: "123"
+      - MCode:
+          code: code
+          language: ""
+          metastring: ""
 

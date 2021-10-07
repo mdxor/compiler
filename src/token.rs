@@ -25,6 +25,12 @@ pub struct MCode<'a> {
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
+pub struct Paragraph<'a> {
+  pub content: Vec<InlineBlock<'a>>,
+}
+
+#[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
 pub enum BlockToken<'a> {
   Heading(Heading<'a>),
   Newline,
@@ -38,6 +44,7 @@ pub enum BlockToken<'a> {
   TaskList,
   Hr,
   Table,
+  Paragraph(Paragraph<'a>),
   JSX(jsx::JSXNode<'a>),
 }
 

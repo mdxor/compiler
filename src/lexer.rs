@@ -56,23 +56,67 @@ impl<'a> Lexer<'a> {
       self.skip_whitespace();
       if let Some(caps) = HEADING_START_REGEX.captures(self.source) {
         let size = caps.get(1).unwrap().as_str().len();
-        self.move_by(size);
-        return self.scan_heading(size as u8);
+        return self.scan_heading(size);
       } else if self.source.starts_with("```") {
         return Ok(self.scan_multiple_line_code());
       }
+      return self.scan_paragraph();
     }
     Err("")
   }
 
-  fn scan_heading(&mut self, level: u8) -> Result<token::BlockToken<'a>, &'a str> {
+  fn scan_paragraph(&mut self) -> Result<token::BlockToken<'a>, &'a str> {
     let content = self.scan_inline_blocks()?;
-    let heading = token::Heading { level, content };
+    Ok(token::BlockToken::Paragraph(token::Paragraph { content }))
+  }
+
+  fn scan_heading(&mut self, level: usize) -> Result<token::BlockToken<'a>, &'a str> {
+    self.move_by(level + 1);
+    let content = self.scan_inline_blocks()?;
+    let heading = token::Heading {
+      level: level as u8,
+      content,
+    };
     Ok(token::BlockToken::Heading(heading))
   }
 
   fn scan_inline_blocks(&mut self) -> Result<Vec<token::InlineBlock<'a>>, &'a str> {
-    Ok(vec![])
+    self.skip_whitespace();
+    let mut inline_blocks = vec![];
+    loop {
+      if self.source.is_empty() || self.source.starts_with("\n") {
+        if self.source.starts_with("\n") {
+          self.move_by(1);
+        }
+        return Ok(inline_blocks);
+      } else if self.source.starts_with("`") {
+      } else {
+        inline_blocks.push(self.scan_inline_text());
+      }
+    }
+  }
+
+  fn scan_inline_text(&mut self) -> token::InlineBlock<'a> {
+    let mut chars = self.source.chars();
+    let mut text_size = 0;
+    let mut text = "";
+    loop {
+      if let Some(char) = chars.next() {
+        match char {
+          '\n' | '`' => {
+            text = self.move_by(text_size);
+            break;
+          }
+          _ => {
+            text_size += char.len_utf8();
+          }
+        }
+      } else {
+        text = self.move_by(text_size);
+        break;
+      }
+    }
+    token::InlineBlock::Text(text)
   }
 
   fn scan_single_line_by_end_char(&mut self, end_char: char) -> &'a str {
@@ -160,6 +204,11 @@ mod tests {
       "```\ncode\n```",
       "```jsx\nlet a = 11;\n```",
       "```jsx meta\nlet a = 11;\n```",
+      "# 123",
+      "###### 123",
+      "#123",
+      "####### 123",
+      "#### 123\n```\ncode\n```",
     ];
     let mut results = vec![];
     for case in &cases {
