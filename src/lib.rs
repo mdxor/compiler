@@ -7,6 +7,7 @@ use wasm_bindgen::prelude::*;
 // mod inline;
 mod jsx;
 mod lexer;
+mod rule;
 mod token;
 // mod parse;
 
