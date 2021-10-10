@@ -2,11 +2,8 @@ extern crate wasm_bindgen;
 
 use wasm_bindgen::prelude::*;
 
-// mod ast;
-// mod block;
-// mod inline;
 mod jsx;
-mod lexer;
+pub mod lexer;
 mod rule;
 mod token;
 // mod parse;

@@ -12,6 +12,13 @@ pub fn is_match_jsx(source: &str) -> bool {
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
+pub struct Position {
+  start: usize,
+  end: usize,
+}
+
+#[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
 enum JSXAttrValue<'a> {
   String(&'a str),
   Expression(JSXExpression<'a>),

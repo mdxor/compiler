@@ -75,5 +75,6 @@ pub enum LeafBlock<'a> {
   FencedCode(FencedCode<'a>),
   JSX(jsx::JSXNode<'a>),
   Paragraph(Paragraph<'a>),
+  BlankLine,
   Table,
 }

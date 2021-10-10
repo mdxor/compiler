@@ -1,0 +1,27 @@
+---
+source: src/lexer.rs
+expression: tokenizes(cases)
+
+---
+- Ok:
+    blocks:
+      - Leaf:
+          FencedCode:
+            code: code
+            language: ""
+            metastring: ""
+- Ok:
+    blocks:
+      - Leaf:
+          FencedCode:
+            code: let a = 11;
+            language: jsx
+            metastring: ""
+- Ok:
+    blocks:
+      - Leaf:
+          FencedCode:
+            code: let a = 11;
+            language: jsx
+            metastring: meta
+

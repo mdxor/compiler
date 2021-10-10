@@ -1,7 +1,12 @@
 use crate::jsx;
+use crate::rule::Rule;
 use crate::token;
 use lazy_static::lazy_static;
 use regex::Regex;
+
+lazy_static! {
+  static ref RULE: Rule = Rule::new();
+}
 
 struct Lexer<'a> {
   source: &'a str,
@@ -37,7 +42,7 @@ impl<'a> Lexer<'a> {
       if self.source.is_empty() {
         break;
       } else {
-        let token = self.scan_block_token()?;
+        let token = self.scan_block()?;
         blocks.push(token);
       }
     }
@@ -45,16 +50,14 @@ impl<'a> Lexer<'a> {
     Ok(ast)
   }
 
-  fn scan_block_token(&mut self) -> Result<token::Block<'a>, &'a str> {
-    lazy_static! {
-      static ref HEADING_START_REGEX: Regex = Regex::new("^(#{1,6}) ").unwrap();
-    }
-    if self.source.starts_with("    ") {
+  fn scan_block(&mut self) -> Result<token::Block<'a>, &'a str> {
+    if RULE.indented_code.is_match(self.source) {
       self.move_by(4);
       return Ok(self.scan_single_line_code());
     } else {
+      // <=3 whitespace
       self.skip_whitespace();
-      if let Some(caps) = HEADING_START_REGEX.captures(self.source) {
+      if let Some(caps) = RULE.atx_heading.captures(self.source) {
         let size = caps.get(1).unwrap().as_str().len();
         return self.scan_heading(size);
       } else if self.source.starts_with("```") {
@@ -62,11 +65,10 @@ impl<'a> Lexer<'a> {
       }
       return self.scan_paragraph();
     }
-    Err("")
   }
 
   fn scan_paragraph(&mut self) -> Result<token::Block<'a>, &'a str> {
-    let inlines = self.scan_inline_blocks()?;
+    let inlines = self.scan_inlines()?;
     Ok(token::Block::Leaf(token::LeafBlock::Paragraph(
       token::Paragraph { inlines },
     )))
@@ -74,7 +76,23 @@ impl<'a> Lexer<'a> {
 
   fn scan_heading(&mut self, level: usize) -> Result<token::Block<'a>, &'a str> {
     self.move_by(level + 1);
-    let inlines = self.scan_inline_blocks()?;
+    let mut inlines = self.scan_inlines()?;
+
+    // A closing sequence of # characters is optional:
+    // # Title ### => <h1>Title<h1/>
+    if !inlines.is_empty() {
+      let last_inline = inlines.pop().unwrap();
+      let mut closing_size = 0;
+      if let token::Inline::Text(text) = last_inline {
+        if let Some(caps) = RULE.closing_atx_heading.captures(text) {
+          closing_size = caps.get(0).unwrap().as_str().len();
+          inlines.push(token::Inline::Text(&text[..text.len() - closing_size]));
+        }
+      }
+      if closing_size == 0 {
+        inlines.push(last_inline);
+      }
+    }
     let heading = token::Heading {
       level: level as u8,
       inlines,
@@ -82,18 +100,18 @@ impl<'a> Lexer<'a> {
     Ok(token::Block::Leaf(token::LeafBlock::Heading(heading)))
   }
 
-  fn scan_inline_blocks(&mut self) -> Result<Vec<token::Inline<'a>>, &'a str> {
+  fn scan_inlines(&mut self) -> Result<Vec<token::Inline<'a>>, &'a str> {
     self.skip_whitespace();
-    let mut inline_blocks = vec![];
+    let mut inlines = vec![];
     loop {
       if self.source.is_empty() || self.source.starts_with("\n") {
         if self.source.starts_with("\n") {
           self.move_by(1);
         }
-        return Ok(inline_blocks);
+        return Ok(inlines);
       } else if self.source.starts_with("`") {
       } else {
-        inline_blocks.push(self.scan_inline_text());
+        inlines.push(self.scan_inline_text());
       }
     }
   }
@@ -193,30 +211,41 @@ impl<'a> Lexer<'a> {
 mod tests {
   use super::*;
 
-  fn parse(source: &str) -> Result<token::AST, &str> {
-    let mut lex = Lexer::new(source);
-    let ast = lex.tokenize();
-    ast
+  fn tokenizes(cases: Vec<&str>) -> Vec<Result<token::AST, &str>> {
+    let mut results = vec![];
+    for case in &cases {
+      let mut lex = Lexer::new(case);
+      let ast = lex.tokenize();
+      results.push(ast)
+    }
+    results
+  }
+
+  #[test]
+  fn test_indented_code() {
+    let cases = vec!["    abc", "    <div></div>"];
+    insta::assert_yaml_snapshot!(tokenizes(cases));
   }
   #[test]
-  fn test_lexer_parse() {
+  fn test_fenced_code() {
     let cases = vec![
-      "    abc",
-      "    <div></div>",
       "```\ncode\n```",
       "```jsx\nlet a = 11;\n```",
       "```jsx meta\nlet a = 11;\n```",
+    ];
+    insta::assert_yaml_snapshot!(tokenizes(cases));
+  }
+  #[test]
+  fn test_atx_heading() {
+    let cases = vec![
       "# 123",
       "###### 123",
       "#123",
       "####### 123",
-      "#### 123\n```\ncode\n```",
+      "#### 123#",
+      "#### 123 ##",
+      "#### 123 #######",
     ];
-    let mut results = vec![];
-    for case in &cases {
-      let result = parse(case);
-      results.push(result)
-    }
-    insta::assert_yaml_snapshot!(results);
+    insta::assert_yaml_snapshot!(tokenizes(cases));
   }
 }
