@@ -5,19 +5,41 @@ use serde::Serialize;
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
 pub struct AST<'a> {
-  pub blocks: Vec<BlockToken<'a>>,
+  pub blocks: Vec<Block<'a>>,
 }
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
 pub struct Heading<'a> {
   pub level: u8,
-  pub content: Vec<InlineBlock<'a>>,
+  pub inlines: Vec<Inline<'a>>,
 }
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
-pub struct MCode<'a> {
+pub struct Paragraph<'a> {
+  pub inlines: Vec<Inline<'a>>,
+}
+
+#[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
+pub enum Inline<'a> {
+  BackslashEscape,
+  CodeSpan,
+  StrikeThrough,
+  Emphasis,
+  Strong,
+  Link,
+  AutoLink,
+  HardLineBreak,
+  SoftLineBreak,
+  Text(&'a str),
+  JSX(jsx::JSXNode<'a>),
+}
+
+#[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
+pub struct FencedCode<'a> {
   pub code: &'a str,
   pub language: &'a str,
   pub metastring: &'a str,
@@ -25,55 +47,33 @@ pub struct MCode<'a> {
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
-pub struct Paragraph<'a> {
-  pub content: Vec<InlineBlock<'a>>,
+pub struct BlockQuote<'a> {
+  blocks: Vec<Block<'a>>,
 }
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
-pub enum BlockToken<'a> {
+pub enum Block<'a> {
+  Container(ContainerBlock<'a>),
+  Leaf(LeafBlock<'a>),
+}
+
+#[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
+pub enum ContainerBlock<'a> {
+  BlockQuote(BlockQuote<'a>),
+  ListItem,
+  List,
+}
+
+#[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
+pub enum LeafBlock<'a> {
+  ThematicBreak,
   Heading(Heading<'a>),
-  Newline,
-  // single line code
-  SCode(&'a str),
-  // multi line code
-  MCode(MCode<'a>),
-  // TODO: list & table
-  BulletList,
-  OrderedList,
-  TaskList,
-  Hr,
-  Table,
+  IndentedCode(&'a str),
+  FencedCode(FencedCode<'a>),
+  JSX(jsx::JSXNode<'a>),
   Paragraph(Paragraph<'a>),
-  JSX(jsx::JSXNode<'a>),
-}
-
-#[derive(Debug, PartialEq)]
-#[cfg_attr(test, derive(Serialize))]
-pub enum ListLegalBlockToken<'a> {
-  Heading(Heading<'a>),
-}
-
-#[derive(Debug, PartialEq)]
-#[cfg_attr(test, derive(Serialize))]
-pub struct Img<'a> {
-  alt: &'a str,
-  url: &'a str,
-}
-
-#[derive(Debug, PartialEq)]
-#[cfg_attr(test, derive(Serialize))]
-pub struct Link<'a> {
-  label: &'a str,
-  url: &'a str,
-}
-
-#[derive(Debug, PartialEq)]
-#[cfg_attr(test, derive(Serialize))]
-pub enum InlineBlock<'a> {
-  Img(Img<'a>),
-  Link(Link<'a>),
-  Text(&'a str),
-  Code(&'a str),
-  JSX(jsx::JSXNode<'a>),
+  Table,
 }

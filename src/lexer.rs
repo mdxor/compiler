@@ -45,7 +45,7 @@ impl<'a> Lexer<'a> {
     Ok(ast)
   }
 
-  fn scan_block_token(&mut self) -> Result<token::BlockToken<'a>, &'a str> {
+  fn scan_block_token(&mut self) -> Result<token::Block<'a>, &'a str> {
     lazy_static! {
       static ref HEADING_START_REGEX: Regex = Regex::new("^(#{1,6}) ").unwrap();
     }
@@ -65,22 +65,24 @@ impl<'a> Lexer<'a> {
     Err("")
   }
 
-  fn scan_paragraph(&mut self) -> Result<token::BlockToken<'a>, &'a str> {
-    let content = self.scan_inline_blocks()?;
-    Ok(token::BlockToken::Paragraph(token::Paragraph { content }))
+  fn scan_paragraph(&mut self) -> Result<token::Block<'a>, &'a str> {
+    let inlines = self.scan_inline_blocks()?;
+    Ok(token::Block::Leaf(token::LeafBlock::Paragraph(
+      token::Paragraph { inlines },
+    )))
   }
 
-  fn scan_heading(&mut self, level: usize) -> Result<token::BlockToken<'a>, &'a str> {
+  fn scan_heading(&mut self, level: usize) -> Result<token::Block<'a>, &'a str> {
     self.move_by(level + 1);
-    let content = self.scan_inline_blocks()?;
+    let inlines = self.scan_inline_blocks()?;
     let heading = token::Heading {
       level: level as u8,
-      content,
+      inlines,
     };
-    Ok(token::BlockToken::Heading(heading))
+    Ok(token::Block::Leaf(token::LeafBlock::Heading(heading)))
   }
 
-  fn scan_inline_blocks(&mut self) -> Result<Vec<token::InlineBlock<'a>>, &'a str> {
+  fn scan_inline_blocks(&mut self) -> Result<Vec<token::Inline<'a>>, &'a str> {
     self.skip_whitespace();
     let mut inline_blocks = vec![];
     loop {
@@ -96,7 +98,7 @@ impl<'a> Lexer<'a> {
     }
   }
 
-  fn scan_inline_text(&mut self) -> token::InlineBlock<'a> {
+  fn scan_inline_text(&mut self) -> token::Inline<'a> {
     let mut chars = self.source.chars();
     let mut text_size = 0;
     let mut text = "";
@@ -116,7 +118,7 @@ impl<'a> Lexer<'a> {
         break;
       }
     }
-    token::InlineBlock::Text(text)
+    token::Inline::Text(text)
   }
 
   fn scan_single_line_by_end_char(&mut self, end_char: char) -> &'a str {
@@ -136,12 +138,12 @@ impl<'a> Lexer<'a> {
     self.move_by(size + 1)
   }
 
-  fn scan_single_line_code(&mut self) -> token::BlockToken<'a> {
+  fn scan_single_line_code(&mut self) -> token::Block<'a> {
     let code = self.scan_single_line_by_end_char('\n');
-    token::BlockToken::SCode(code)
+    token::Block::Leaf(token::LeafBlock::IndentedCode(code))
   }
 
-  fn scan_multiple_line_code(&mut self) -> token::BlockToken<'a> {
+  fn scan_multiple_line_code(&mut self) -> token::Block<'a> {
     lazy_static! {
       static ref CODE_END_REGEX: Regex = Regex::new(r"(^ {0,3}|\n {0,3})``` *\n?").unwrap();
     }
@@ -172,11 +174,11 @@ impl<'a> Lexer<'a> {
     } else {
       code = self.move_by(self.source.len());
     }
-    token::BlockToken::MCode(token::MCode {
+    token::Block::Leaf(token::LeafBlock::FencedCode(token::FencedCode {
       code,
       language,
       metastring,
-    })
+    }))
   }
 
   fn scan_jsx(&mut self, is_inline: bool) -> Result<jsx::JSXNode<'a>, &'a str> {
