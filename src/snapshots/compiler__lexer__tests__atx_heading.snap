@@ -9,45 +9,172 @@ expression: tokenizes(cases)
           Heading:
             level: 1
             inlines:
-              - Text: "123"
+              - Text: foo
+- Ok:
+    blocks:
+      - Leaf:
+          Heading:
+            level: 2
+            inlines:
+              - Text: foo
+- Ok:
+    blocks:
+      - Leaf:
+          Heading:
+            level: 3
+            inlines:
+              - Text: foo
+- Ok:
+    blocks:
+      - Leaf:
+          Heading:
+            level: 4
+            inlines:
+              - Text: foo
+- Ok:
+    blocks:
+      - Leaf:
+          Heading:
+            level: 5
+            inlines:
+              - Text: foo
 - Ok:
     blocks:
       - Leaf:
           Heading:
             level: 6
             inlines:
-              - Text: "123"
+              - Text: foo
 - Ok:
     blocks:
       - Leaf:
           Paragraph:
             inlines:
-              - Text: "#123"
+              - Text: "####### foo"
 - Ok:
     blocks:
       - Leaf:
           Paragraph:
             inlines:
-              - Text: "####### 123"
+              - Text: "#5 bolt"
+- Ok:
+    blocks:
+      - Leaf:
+          Paragraph:
+            inlines:
+              - Text: "#hashtag"
+- Ok:
+    blocks:
+      - Leaf:
+          Paragraph:
+            inlines:
+              - Text: "#"
+              - Text: "# foo"
 - Ok:
     blocks:
       - Leaf:
           Heading:
-            level: 4
+            level: 1
             inlines:
-              - Text: "123#"
+              - Text: "foo                     "
 - Ok:
     blocks:
       - Leaf:
           Heading:
-            level: 4
+            level: 3
             inlines:
-              - Text: "123"
+              - Text: foo
 - Ok:
     blocks:
       - Leaf:
           Heading:
-            level: 4
+            level: 2
             inlines:
-              - Text: "123"
+              - Text: foo
+- Ok:
+    blocks:
+      - Leaf:
+          Heading:
+            level: 1
+            inlines:
+              - Text: foo
+- Ok:
+    blocks:
+      - Leaf:
+          IndentedCode: "# foo"
+- Ok:
+    blocks:
+      - Leaf:
+          Heading:
+            level: 2
+            inlines:
+              - Text: foo
+      - Leaf:
+          Heading:
+            level: 3
+            inlines:
+              - Text: "bar   "
+- Ok:
+    blocks:
+      - Leaf:
+          Heading:
+            level: 1
+            inlines:
+              - Text: foo
+      - Leaf:
+          Heading:
+            level: 5
+            inlines:
+              - Text: foo
+- Ok:
+    blocks:
+      - Leaf:
+          Heading:
+            level: 3
+            inlines:
+              - Text: foo
+- Ok:
+    blocks:
+      - Leaf:
+          Heading:
+            level: 3
+            inlines:
+              - Text: "foo ### b"
+- Ok:
+    blocks:
+      - Leaf:
+          Heading:
+            level: 1
+            inlines:
+              - Text: "foo#"
+- Ok:
+    blocks:
+      - Leaf:
+          Paragraph:
+            inlines:
+              - Text: Foo bar
+      - Leaf:
+          Heading:
+            level: 1
+            inlines:
+              - Text: baz
+      - Leaf:
+          Paragraph:
+            inlines:
+              - Text: Bar foo
+- Ok:
+    blocks:
+      - Leaf:
+          Heading:
+            level: 2
+            inlines: []
+      - Leaf:
+          Heading:
+            level: 1
+            inlines: []
+      - Leaf:
+          Heading:
+            level: 3
+            inlines:
+              - Text: ""
 

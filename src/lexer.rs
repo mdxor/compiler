@@ -57,6 +57,16 @@ impl<'a> Lexer<'a> {
     } else {
       // <=3 whitespace
       self.skip_whitespace();
+      if let Some(caps) = RULE.empty_atx_heading.captures(self.source) {
+        let size = caps.get(1).unwrap().as_str().len();
+        self.move_by(caps.get(0).unwrap().as_str().len());
+        return Ok(token::Block::Leaf(token::LeafBlock::Heading(
+          token::Heading {
+            level: size as u8,
+            inlines: vec![],
+          },
+        )));
+      }
       if let Some(caps) = RULE.atx_heading.captures(self.source) {
         let size = caps.get(1).unwrap().as_str().len();
         return self.scan_heading(size);
@@ -111,32 +121,69 @@ impl<'a> Lexer<'a> {
         return Ok(inlines);
       } else if self.source.starts_with("`") {
       } else {
-        inlines.push(self.scan_inline_text());
+        inlines.append(&mut self.scan_inline_text());
       }
     }
   }
 
-  fn scan_inline_text(&mut self) -> token::Inline<'a> {
+  fn scan_inline_text(&mut self) -> Vec<token::Inline<'a>> {
     let mut chars = self.source.chars();
     let mut text_size = 0;
-    let mut text = "";
+    let mut texts = vec![];
+    let mut escaped = false;
     loop {
       if let Some(char) = chars.next() {
-        match char {
-          '\n' | '`' => {
-            text = self.move_by(text_size);
-            break;
+        if !escaped {
+          match char {
+            '\n' | '`' => {
+              texts.push(token::Inline::Text(self.move_by(text_size)));
+              break;
+            }
+            '\\' => {
+              escaped = !escaped;
+            }
+            _ => {
+              text_size += char.len_utf8();
+            }
           }
-          _ => {
-            text_size += char.len_utf8();
+        } else {
+          match char {
+            '\n' => {
+              if text_size > 0 {
+                texts.push(token::Inline::Text(self.move_by(text_size + 1)));
+              }
+              break;
+            }
+            '\\' => {
+              if text_size > 0 {
+                texts.push(token::Inline::Text(self.move_by(text_size)));
+                text_size = 0;
+              }
+              texts.push(token::Inline::Text(r"\"));
+            }
+            '`' | '#' => {
+              if text_size > 0 {
+                texts.push(token::Inline::Text(self.move_by(text_size)));
+                text_size = 0;
+              }
+              self.move_by(1);
+              texts.push(token::Inline::Text(self.move_by(1)));
+            }
+            _ => {
+              text_size += char.len_utf8() + 1;
+            }
           }
+          escaped = false;
         }
       } else {
-        text = self.move_by(text_size);
+        if escaped {
+          text_size += 1;
+        }
+        texts.push(token::Inline::Text(self.move_by(text_size)));
         break;
       }
     }
-    token::Inline::Text(text)
+    texts
   }
 
   fn scan_single_line_by_end_char(&mut self, end_char: char) -> &'a str {
@@ -238,13 +285,32 @@ mod tests {
   #[test]
   fn test_atx_heading() {
     let cases = vec![
-      "# 123",
-      "###### 123",
-      "#123",
-      "####### 123",
-      "#### 123#",
-      "#### 123 ##",
-      "#### 123 #######",
+      "# foo",
+      "## foo",
+      "### foo",
+      "#### foo",
+      "##### foo",
+      "###### foo",
+      "####### foo",
+      "#5 bolt",
+      "#hashtag",
+      r"\## foo",
+      // TODO:
+      // r"# foo *bar* \*baz\*"
+      "#                  foo                     ",
+      "### foo",
+      " ## foo",
+      "  # foo",
+      "    # foo",
+      // "foo\n    # bar",
+      "## foo ##\n###   bar    ###",
+      "# foo ##################################\n##### foo ##",
+      "### foo ###     ",
+      "### foo ### b",
+      "# foo#",
+      // "****\n## foo\n****"
+      "Foo bar\n# baz\nBar foo",
+      "## \n#\n### ###",
     ];
     insta::assert_yaml_snapshot!(tokenizes(cases));
   }
