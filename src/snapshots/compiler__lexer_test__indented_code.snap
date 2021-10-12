@@ -1,5 +1,5 @@
 ---
-source: src/lexer.rs
+source: src/lexer_test.rs
 expression: tokenizes(cases)
 
 ---

@@ -4,6 +4,8 @@ use wasm_bindgen::prelude::*;
 
 mod jsx;
 pub mod lexer;
+#[cfg(test)]
+mod lexer_test;
 mod rule;
 mod token;
 // mod parse;
