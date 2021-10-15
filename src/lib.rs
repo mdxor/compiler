@@ -3,6 +3,8 @@ extern crate wasm_bindgen;
 use wasm_bindgen::prelude::*;
 
 mod jsx;
+#[cfg(test)]
+mod jsx_test;
 pub mod lexer;
 #[cfg(test)]
 mod lexer_test;
