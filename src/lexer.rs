@@ -72,9 +72,16 @@ impl<'a> Lexer<'a> {
         return self.scan_heading(size);
       } else if self.source.starts_with("```") {
         return Ok(self.scan_multiple_line_code());
+      } else if let Some(caps) = RULE.thematic_break.captures(self.source) {
+        let size = caps.get(0).unwrap().as_str().len();
+        return Ok(self.scan_thematic_break(size));
       }
       return self.scan_paragraph();
     }
+  }
+
+  fn scan_thematic_break(&mut self, size: usize) -> token::Block<'a> {
+    token::Block::Leaf(token::LeafBlock::ThematicBreak)
   }
 
   fn scan_paragraph(&mut self) -> Result<token::Block<'a>, &'a str> {
