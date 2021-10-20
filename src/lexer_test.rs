@@ -56,3 +56,28 @@ fn test_atx_heading() {
   ];
   insta::assert_yaml_snapshot!(tokenizes(cases));
 }
+#[test]
+fn test_thematic_break() {
+  let cases = vec![
+    "***\n---\n___",
+    "+++",
+    "===",
+    "--\n**\n__",
+    "***\n ***\n   ***",
+    "    ***",
+    // "Foo\n    ***",
+    "_____________________________________",
+    "- - -",
+    " **  * ** * ** * **",
+    "-     -      -      -",
+    "- - - -    ",
+    "_ _ _ _ a\na------\n---a---",
+    // " *-*",
+    // "- foo\n***\n- bar"
+    "Foo\n***\nbar",
+    // "Foo\n---\nbar",
+    // "* Foo\n* * *\n* Bar",
+    // "- Foo\n- * * *",
+  ];
+  insta::assert_yaml_snapshot!(tokenizes(cases));
+}

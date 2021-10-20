@@ -1,0 +1,86 @@
+---
+source: src/lexer_test.rs
+expression: tokenizes(cases)
+
+---
+- Ok:
+    blocks:
+      - Leaf: ThematicBreak
+      - Leaf: ThematicBreak
+      - Leaf: ThematicBreak
+- Ok:
+    blocks:
+      - Leaf:
+          Paragraph:
+            inlines:
+              - Text: +++
+- Ok:
+    blocks:
+      - Leaf:
+          Paragraph:
+            inlines:
+              - Text: "==="
+- Ok:
+    blocks:
+      - Leaf:
+          Paragraph:
+            inlines:
+              - Text: "--"
+      - Leaf:
+          Paragraph:
+            inlines:
+              - Text: "**"
+      - Leaf:
+          Paragraph:
+            inlines:
+              - Text: __
+- Ok:
+    blocks:
+      - Leaf: ThematicBreak
+      - Leaf: ThematicBreak
+      - Leaf: ThematicBreak
+- Ok:
+    blocks:
+      - Leaf:
+          IndentedCode: "***"
+- Ok:
+    blocks:
+      - Leaf: ThematicBreak
+- Ok:
+    blocks:
+      - Leaf: ThematicBreak
+- Ok:
+    blocks:
+      - Leaf: ThematicBreak
+- Ok:
+    blocks:
+      - Leaf: ThematicBreak
+- Ok:
+    blocks:
+      - Leaf: ThematicBreak
+- Ok:
+    blocks:
+      - Leaf:
+          Paragraph:
+            inlines:
+              - Text: _ _ _ _ a
+      - Leaf:
+          Paragraph:
+            inlines:
+              - Text: a------
+      - Leaf:
+          Paragraph:
+            inlines:
+              - Text: "---a---"
+- Ok:
+    blocks:
+      - Leaf:
+          Paragraph:
+            inlines:
+              - Text: Foo
+      - Leaf: ThematicBreak
+      - Leaf:
+          Paragraph:
+            inlines:
+              - Text: bar
+

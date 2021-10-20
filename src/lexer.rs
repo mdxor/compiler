@@ -81,6 +81,7 @@ impl<'a> Lexer<'a> {
   }
 
   fn scan_thematic_break(&mut self, size: usize) -> token::Block<'a> {
+    self.move_by(size);
     token::Block::Leaf(token::LeafBlock::ThematicBreak)
   }
 
