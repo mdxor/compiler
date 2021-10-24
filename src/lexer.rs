@@ -3,6 +3,7 @@ use crate::rule::Rule;
 use crate::token;
 use lazy_static::lazy_static;
 use regex::Regex;
+use std::mem;
 
 lazy_static! {
   static ref RULE: Rule = Rule::new();
@@ -10,11 +11,15 @@ lazy_static! {
 
 pub struct Lexer<'a> {
   source: &'a str,
+  pub blocks: Vec<token::Block<'a>>,
 }
 
 impl<'a> Lexer<'a> {
   pub fn new(source: &'a str) -> Self {
-    Lexer { source }
+    Lexer {
+      source,
+      blocks: vec![],
+    }
   }
 
   fn skip_whitespace(&mut self) -> usize {
@@ -37,7 +42,6 @@ impl<'a> Lexer<'a> {
   }
 
   pub fn tokenize(&mut self) -> Result<token::AST<'a>, &'a str> {
-    let mut blocks = vec![];
     let mut paragraph: Option<token::Paragraph<'a>> = None;
     let mut in_paragraph = false;
     loop {
@@ -58,19 +62,23 @@ impl<'a> Lexer<'a> {
           }
         } else {
           if let Some(p) = paragraph {
-            blocks.push(token::Block::Leaf(token::LeafBlock::Paragraph(p)))
+            self
+              .blocks
+              .push(token::Block::Leaf(token::LeafBlock::Paragraph(p)))
           }
-          blocks.push(block);
+          self.blocks.push(block);
           paragraph = None;
           in_paragraph = false;
         }
       }
     }
     if let Some(p) = paragraph {
-      blocks.push(token::Block::Leaf(token::LeafBlock::Paragraph(p)))
+      self
+        .blocks
+        .push(token::Block::Leaf(token::LeafBlock::Paragraph(p)))
     }
-    let ast = token::AST { blocks };
-    Ok(ast)
+    let blocks = mem::take(&mut self.blocks);
+    Ok(token::AST { blocks })
   }
 
   fn scan_block(&mut self, in_paragraph: bool) -> Result<token::Block<'a>, &'a str> {
