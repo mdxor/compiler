@@ -38,19 +38,42 @@ impl<'a> Lexer<'a> {
 
   pub fn tokenize(&mut self) -> Result<token::AST<'a>, &'a str> {
     let mut blocks = vec![];
+    let mut paragraph: Option<token::Paragraph<'a>> = None;
+    let mut in_paragraph = false;
     loop {
       if self.source.is_empty() {
         break;
       } else {
-        let token = self.scan_block()?;
-        blocks.push(token);
+        let block = self.scan_block(in_paragraph)?;
+        if let token::Block::Leaf(token::LeafBlock::Paragraph(mut p)) = block {
+          in_paragraph = true;
+          // merge paragraph
+          if let Some(mut last_p) = paragraph {
+            let mut inlines = vec![];
+            inlines.append(&mut last_p.inlines);
+            inlines.append(&mut p.inlines);
+            paragraph = Some(token::Paragraph { inlines })
+          } else {
+            paragraph = Some(p);
+          }
+        } else {
+          if let Some(p) = paragraph {
+            blocks.push(token::Block::Leaf(token::LeafBlock::Paragraph(p)))
+          }
+          blocks.push(block);
+          paragraph = None;
+          in_paragraph = false;
+        }
       }
+    }
+    if let Some(p) = paragraph {
+      blocks.push(token::Block::Leaf(token::LeafBlock::Paragraph(p)))
     }
     let ast = token::AST { blocks };
     Ok(ast)
   }
 
-  fn scan_block(&mut self) -> Result<token::Block<'a>, &'a str> {
+  fn scan_block(&mut self, in_paragraph: bool) -> Result<token::Block<'a>, &'a str> {
     if RULE.indented_code.is_match(self.source) {
       self.move_by(4);
       return Ok(self.scan_single_line_code());

@@ -26,13 +26,7 @@ expression: tokenizes(cases)
           Paragraph:
             inlines:
               - Text: "--"
-      - Leaf:
-          Paragraph:
-            inlines:
               - Text: "**"
-      - Leaf:
-          Paragraph:
-            inlines:
               - Text: __
 - Ok:
     blocks:
@@ -64,13 +58,7 @@ expression: tokenizes(cases)
           Paragraph:
             inlines:
               - Text: _ _ _ _ a
-      - Leaf:
-          Paragraph:
-            inlines:
               - Text: a------
-      - Leaf:
-          Paragraph:
-            inlines:
               - Text: "---a---"
 - Ok:
     blocks:
