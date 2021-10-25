@@ -82,38 +82,33 @@ impl<'a> Lexer<'a> {
   }
 
   fn scan_block(&mut self, in_paragraph: bool) -> Result<token::Block<'a>, &'a str> {
-    if RULE.indented_code.is_match(self.source) {
-      self.move_by(4);
-      return Ok(self.scan_single_line_code());
+    if let Some(block) = self.scan_single_line_code() {
+      Ok(block)
     } else {
       // <=3 whitespace
       self.skip_whitespace();
-      if let Some(caps) = RULE.empty_atx_heading.captures(self.source) {
-        let size = caps.get(1).unwrap().as_str().len();
-        self.move_by(caps.get(0).unwrap().as_str().len());
-        return Ok(token::Block::Leaf(token::LeafBlock::Heading(
-          token::Heading {
-            level: size as u8,
-            inlines: vec![],
-          },
-        )));
+      if let Some(block) = self.scan_empty_atx_heading() {
+        Ok(block)
+      } else if let Some(block) = self.scan_heading()? {
+        Ok(block)
+      } else if let Some(block) = self.scan_fenced_code() {
+        Ok(block)
+      } else if let Some(block) = self.scan_thematic_break() {
+        Ok(block)
+      } else {
+        self.scan_paragraph()
       }
-      if let Some(caps) = RULE.atx_heading.captures(self.source) {
-        let size = caps.get(1).unwrap().as_str().len();
-        return self.scan_heading(size);
-      } else if self.source.starts_with("```") {
-        return Ok(self.scan_multiple_line_code());
-      } else if let Some(caps) = RULE.thematic_break.captures(self.source) {
-        let size = caps.get(0).unwrap().as_str().len();
-        return Ok(self.scan_thematic_break(size));
-      }
-      return self.scan_paragraph();
     }
   }
 
-  fn scan_thematic_break(&mut self, size: usize) -> token::Block<'a> {
-    self.move_by(size);
-    token::Block::Leaf(token::LeafBlock::ThematicBreak)
+  fn scan_thematic_break(&mut self) -> Option<token::Block<'a>> {
+    if let Some(caps) = RULE.thematic_break.captures(self.source) {
+      let size = caps.get(0).unwrap().as_str().len();
+      self.move_by(size);
+      Some(token::Block::Leaf(token::LeafBlock::ThematicBreak))
+    } else {
+      None
+    }
   }
 
   fn scan_paragraph(&mut self) -> Result<token::Block<'a>, &'a str> {
@@ -123,30 +118,49 @@ impl<'a> Lexer<'a> {
     )))
   }
 
-  fn scan_heading(&mut self, level: usize) -> Result<token::Block<'a>, &'a str> {
-    self.move_by(level + 1);
-    let mut inlines = self.scan_inlines()?;
+  fn scan_empty_atx_heading(&mut self) -> Option<token::Block<'a>> {
+    if let Some(caps) = RULE.empty_atx_heading.captures(self.source) {
+      let size = caps.get(1).unwrap().as_str().len();
+      self.move_by(caps.get(0).unwrap().as_str().len());
+      Some(token::Block::Leaf(token::LeafBlock::Heading(
+        token::Heading {
+          level: size as u8,
+          inlines: vec![],
+        },
+      )))
+    } else {
+      None
+    }
+  }
 
-    // A closing sequence of # characters is optional:
-    // # Title ### => <h1>Title<h1/>
-    if !inlines.is_empty() {
-      let last_inline = inlines.pop().unwrap();
-      let mut closing_size = 0;
-      if let token::Inline::Text(text) = last_inline {
-        if let Some(caps) = RULE.closing_atx_heading.captures(text) {
-          closing_size = caps.get(0).unwrap().as_str().len();
-          inlines.push(token::Inline::Text(&text[..text.len() - closing_size]));
+  fn scan_heading(&mut self) -> Result<Option<token::Block<'a>>, &'a str> {
+    if let Some(caps) = RULE.atx_heading.captures(self.source) {
+      let size = caps.get(1).unwrap().as_str().len();
+      self.move_by(size + 1);
+      let mut inlines = self.scan_inlines()?;
+      // A closing sequence of # characters is optional:
+      // # Title ### => <h1>Title<h1/>
+      if !inlines.is_empty() {
+        let last_inline = inlines.pop().unwrap();
+        let mut closing_size = 0;
+        if let token::Inline::Text(text) = last_inline {
+          if let Some(caps) = RULE.closing_atx_heading.captures(text) {
+            closing_size = caps.get(0).unwrap().as_str().len();
+            inlines.push(token::Inline::Text(&text[..text.len() - closing_size]));
+          }
+        }
+        if closing_size == 0 {
+          inlines.push(last_inline);
         }
       }
-      if closing_size == 0 {
-        inlines.push(last_inline);
-      }
+      let heading = token::Heading {
+        level: size as u8,
+        inlines,
+      };
+      Ok(Some(token::Block::Leaf(token::LeafBlock::Heading(heading))))
+    } else {
+      Ok(None)
     }
-    let heading = token::Heading {
-      level: level as u8,
-      inlines,
-    };
-    Ok(token::Block::Leaf(token::LeafBlock::Heading(heading)))
   }
 
   fn scan_inlines(&mut self) -> Result<Vec<token::Inline<'a>>, &'a str> {
@@ -242,47 +256,53 @@ impl<'a> Lexer<'a> {
     self.move_by(size + 1)
   }
 
-  fn scan_single_line_code(&mut self) -> token::Block<'a> {
-    let code = self.scan_single_line_by_end_char('\n');
-    token::Block::Leaf(token::LeafBlock::IndentedCode(code))
+  fn scan_single_line_code(&mut self) -> Option<token::Block<'a>> {
+    if RULE.indented_code.is_match(self.source) {
+      self.move_by(4);
+      let code = self.scan_single_line_by_end_char('\n');
+      Some(token::Block::Leaf(token::LeafBlock::IndentedCode(code)))
+    } else {
+      None
+    }
   }
 
-  fn scan_multiple_line_code(&mut self) -> token::Block<'a> {
-    lazy_static! {
-      static ref CODE_END_REGEX: Regex = Regex::new(r"(^ {0,3}|\n {0,3})``` *\n?").unwrap();
-    }
-    self.move_by(3);
-    let mut language = "";
-    let mut metastring = "";
-    let mut code = "";
-
-    self.skip_whitespace();
-    let mut code_info = self.scan_single_line_by_end_char('\n');
-    if code_info.ends_with("\n") {
-      code_info = &code_info[..code_info.len() - 1];
-    }
-    if !code_info.is_empty() {
-      if let Some(index) = code_info.find(" ") {
-        language = &code_info[0..index].trim();
-        metastring = &code_info[index..].trim_start();
-      } else {
-        language = code_info.trim();
+  fn scan_fenced_code(&mut self) -> Option<token::Block<'a>> {
+    if RULE.fenced_code.is_match(self.source) {
+      self.move_by(3);
+      let mut language = "";
+      let mut metastring = "";
+      let mut code = "";
+      self.skip_whitespace();
+      let mut code_info = self.scan_single_line_by_end_char('\n');
+      if code_info.ends_with("\n") {
+        code_info = &code_info[..code_info.len() - 1];
       }
-    }
-
-    if let Some(captures) = CODE_END_REGEX.captures(self.source) {
-      let end_token = captures.get(0).unwrap().as_str();
-      let code_size = self.source.find(end_token).unwrap();
-      code = self.move_by(code_size);
-      self.move_by(end_token.len());
+      if !code_info.is_empty() {
+        if let Some(index) = code_info.find(" ") {
+          language = &code_info[0..index].trim();
+          metastring = &code_info[index..].trim_start();
+        } else {
+          language = code_info.trim();
+        }
+      }
+      if let Some(captures) = RULE.fenced_code_end.captures(self.source) {
+        let end_token = captures.get(0).unwrap().as_str();
+        let code_size = self.source.find(end_token).unwrap();
+        code = self.move_by(code_size);
+        self.move_by(end_token.len());
+      } else {
+        code = self.move_by(self.source.len());
+      }
+      Some(token::Block::Leaf(token::LeafBlock::FencedCode(
+        token::FencedCode {
+          code,
+          language,
+          metastring,
+        },
+      )))
     } else {
-      code = self.move_by(self.source.len());
+      None
     }
-    token::Block::Leaf(token::LeafBlock::FencedCode(token::FencedCode {
-      code,
-      language,
-      metastring,
-    }))
   }
 
   fn scan_jsx(&mut self, is_inline: bool) -> Result<jsx::JSXNode<'a>, &'a str> {

@@ -6,17 +6,20 @@ pub struct Rule {
   pub indented_code: Regex,
   pub closing_atx_heading: Regex,
   pub thematic_break: Regex,
+  pub fenced_code: Regex,
+  pub fenced_code_end: Regex,
 }
 
 impl Rule {
   pub fn new() -> Self {
-    let line_end = "(?:\n|$)";
     Rule {
       indented_code: Regex::new("^ {4}").unwrap(),
       atx_heading: Regex::new("^(#{1,6}) ").unwrap(),
-      empty_atx_heading: Regex::new(&format!("{}{}", "^(#{1,6})", line_end)).unwrap(),
+      empty_atx_heading: Regex::new("^(#{1,6})(?:\n|$)").unwrap(),
       closing_atx_heading: Regex::new("(^| )#+ *$").unwrap(),
-      thematic_break: Regex::new(r"^(?:(?:\* *){3,}|(?:_ *){3,}|(?:\- *){3,})(?:\n|$)").unwrap(),
+      thematic_break: Regex::new("^(?:(?:\\* *){3,}|(?:_ *){3,}|(?:\\- *){3,})(?:\n|$)").unwrap(),
+      fenced_code: Regex::new("^```").unwrap(),
+      fenced_code_end: Regex::new("(^ {0,3}|\n {0,3})``` *\n?").unwrap(),
     }
   }
 }
