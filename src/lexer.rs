@@ -23,10 +23,7 @@ impl<'a> Lexer<'a> {
   }
 
   fn skip_whitespace(&mut self) -> usize {
-    lazy_static! {
-      static ref WHITESPACE_REGEX: Regex = Regex::new("^ +").unwrap();
-    }
-    if let Some(caps) = WHITESPACE_REGEX.captures(self.source) {
+    if let Some(caps) = RULE.whitespace.captures(self.source) {
       let size = caps.get(0).unwrap().as_str().len();
       self.move_by(size);
       size
@@ -42,46 +39,19 @@ impl<'a> Lexer<'a> {
   }
 
   pub fn tokenize(&mut self) -> Result<token::AST<'a>, &'a str> {
-    let mut paragraph: Option<token::Paragraph<'a>> = None;
-    let mut in_paragraph = false;
     loop {
       if self.source.is_empty() {
         break;
       } else {
-        let block = self.scan_block(in_paragraph)?;
-        if let token::Block::Leaf(token::LeafBlock::Paragraph(mut p)) = block {
-          in_paragraph = true;
-          // merge paragraph
-          if let Some(mut last_p) = paragraph {
-            let mut inlines = vec![];
-            inlines.append(&mut last_p.inlines);
-            inlines.append(&mut p.inlines);
-            paragraph = Some(token::Paragraph { inlines })
-          } else {
-            paragraph = Some(p);
-          }
-        } else {
-          if let Some(p) = paragraph {
-            self
-              .blocks
-              .push(token::Block::Leaf(token::LeafBlock::Paragraph(p)))
-          }
-          self.blocks.push(block);
-          paragraph = None;
-          in_paragraph = false;
-        }
+        let block = self.scan_block()?;
+        self.blocks.push(block);
       }
-    }
-    if let Some(p) = paragraph {
-      self
-        .blocks
-        .push(token::Block::Leaf(token::LeafBlock::Paragraph(p)))
     }
     let blocks = mem::take(&mut self.blocks);
     Ok(token::AST { blocks })
   }
 
-  fn scan_block(&mut self, in_paragraph: bool) -> Result<token::Block<'a>, &'a str> {
+  fn scan_block(&mut self) -> Result<token::Block<'a>, &'a str> {
     if let Some(block) = self.scan_single_line_code() {
       Ok(block)
     } else {
@@ -112,10 +82,19 @@ impl<'a> Lexer<'a> {
   }
 
   fn scan_paragraph(&mut self) -> Result<token::Block<'a>, &'a str> {
-    let inlines = self.scan_inlines()?;
-    Ok(token::Block::Leaf(token::LeafBlock::Paragraph(
-      token::Paragraph { inlines },
-    )))
+    let mut inlines = self.scan_inlines()?;
+    let last = self.blocks.pop();
+    if let Some(token::Block::Leaf(token::LeafBlock::Paragraph(mut p))) = last {
+      p.inlines.append(&mut inlines);
+      Ok(token::Block::Leaf(token::LeafBlock::Paragraph(p)))
+    } else {
+      if let Some(block) = last {
+        self.blocks.push(block);
+      }
+      Ok(token::Block::Leaf(token::LeafBlock::Paragraph(
+        token::Paragraph { inlines },
+      )))
+    }
   }
 
   fn scan_empty_atx_heading(&mut self) -> Option<token::Block<'a>> {
