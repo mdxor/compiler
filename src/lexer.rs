@@ -52,7 +52,9 @@ impl<'a> Lexer<'a> {
   }
 
   fn scan_block(&mut self) -> Result<token::Block<'a>, &'a str> {
-    if let Some(block) = self.scan_single_line_code() {
+    if let Some(block) = self.scan_blank_line() {
+      Ok(block)
+    } else if let Some(block) = self.scan_single_line_code() {
       Ok(block)
     } else {
       // <=3 whitespace
@@ -68,6 +70,16 @@ impl<'a> Lexer<'a> {
       } else {
         self.scan_paragraph()
       }
+    }
+  }
+
+  fn scan_blank_line(&mut self) -> Option<token::Block<'a>> {
+    if let Some(caps) = RULE.blank_line.captures(self.source) {
+      let size = caps.get(0).unwrap().as_str().len();
+      self.move_by(size);
+      Some(token::Block::Leaf(token::LeafBlock::BlankLine))
+    } else {
+      None
     }
   }
 
