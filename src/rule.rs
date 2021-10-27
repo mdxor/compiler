@@ -10,6 +10,7 @@ pub struct Rule {
   pub fenced_code_end: Regex,
   pub whitespace: Regex,
   pub blank_line: Regex,
+  pub line: Regex,
 }
 
 impl Rule {
@@ -22,8 +23,9 @@ impl Rule {
       thematic_break: Regex::new("^(?:(?:\\* *){3,}|(?:_ *){3,}|(?:\\- *){3,})(?:\n|$)").unwrap(),
       fenced_code: Regex::new("^```").unwrap(),
       fenced_code_end: Regex::new("(^ {0,3}|\n {0,3})``` *\n?").unwrap(),
-      whitespace: Regex::new(" +").unwrap(),
+      whitespace: Regex::new("^ +").unwrap(),
       blank_line: Regex::new("^ +\n").unwrap(),
+      line: Regex::new("^(.+)(?:\n|$)").unwrap(),
     }
   }
 }

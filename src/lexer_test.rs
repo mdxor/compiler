@@ -27,32 +27,32 @@ fn test_fenced_code() {
 #[test]
 fn test_atx_heading() {
   let cases = vec![
-    "# foo",
-    "## foo",
-    "### foo",
-    "#### foo",
-    "##### foo",
-    "###### foo",
-    "####### foo",
-    "#5 bolt",
-    "#hashtag",
-    r"\## foo",
-    // TODO:
-    // r"# foo *bar* \*baz\*"
-    "#                  foo                     ",
-    "### foo",
-    " ## foo",
-    "  # foo",
-    "    # foo",
-    // "foo\n    # bar",
-    "## foo ##\n###   bar    ###",
-    "# foo ##################################\n##### foo ##",
-    "### foo ###     ",
-    "### foo ### b",
-    "# foo#",
+    // "# foo",
+    // "## foo",
+    // "### foo",
+    // "#### foo",
+    // "##### foo",
+    // "###### foo",
+    // "####### foo",
+    // "#5 bolt",
+    // "#hashtag",
+    // r"\## foo",
+    // // TODO:
+    // // r"# foo *bar* \*baz\*"
+    // "#                  foo                     ",
+    // "### foo",
+    // " ## foo",
+    // "  # foo",
+    // "    # foo",
+    // // "foo\n    # bar",
+    // "## foo ##\n###   bar    ###",
+    // "# foo ##################################\n##### foo ##",
+    // "### foo ###     ",
+    // "### foo ### b",
+    // "# foo#",
     // "****\n## foo\n****"
     "Foo bar\n# baz\nBar foo",
-    "## \n#\n### ###",
+    // "## \n#\n### ###",
   ];
   insta::assert_yaml_snapshot!(tokenizes(cases));
 }
