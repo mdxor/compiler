@@ -11,7 +11,6 @@ lazy_static! {
 pub struct Lexer<'a> {
   source: &'a str,
   offset: usize,
-  inlines_size: usize,
   inlines_source: &'a str,
   pub blocks: Vec<token::Block<'a>>,
 }
@@ -21,7 +20,6 @@ impl<'a> Lexer<'a> {
     Lexer {
       source,
       offset: 0,
-      inlines_size: 0,
       inlines_source: "",
       blocks: vec![],
     }
@@ -56,7 +54,7 @@ impl<'a> Lexer<'a> {
   pub fn tokenize(&mut self) -> Result<token::AST<'a>, &'a str> {
     loop {
       if self.cur().is_empty() {
-        if self.inlines_size > 0 {
+        if !self.inlines_source.is_empty() {
           let block = self.scan_paragraph()?;
           self.blocks.push(block);
         }
@@ -71,6 +69,7 @@ impl<'a> Lexer<'a> {
 
   fn scan_block(&mut self) -> Result<(), &'a str> {
     let mut block_option: Option<token::Block<'a>> = None;
+    let _inlines_source = self.inlines_source;
     if let Some(block) = self.scan_blank_line() {
       block_option = Some(block);
     } else if let Some(block) = self.scan_single_line_code() {
@@ -90,7 +89,8 @@ impl<'a> Lexer<'a> {
     }
 
     if let Some(block) = block_option {
-      if self.inlines_size > 0 {
+      if !_inlines_source.is_empty() {
+        self.inlines_source = _inlines_source;
         let p = self.scan_paragraph()?;
         self.blocks.push(p);
       }
@@ -99,7 +99,8 @@ impl<'a> Lexer<'a> {
       if let Some(caps) = RULE.line.captures(self.cur()) {
         let size = caps.get(0).unwrap().as_str().len();
         self.move_by(size);
-        self.inlines_size += size;
+        self.inlines_source =
+          &self.source[self.offset - size - self.inlines_source.len()..self.offset];
       }
     }
     Ok(())
@@ -126,7 +127,9 @@ impl<'a> Lexer<'a> {
   }
 
   fn scan_paragraph(&mut self) -> Result<token::Block<'a>, &'a str> {
-    self.inlines_source = &self.source[self.offset - self.inlines_size..self.offset];
+    if self.inlines_source.ends_with("\n") {
+      self.inlines_source = &self.inlines_source[..self.inlines_source.len() - 1];
+    }
     let inlines = self.scan_inlines()?;
 
     Ok(token::Block::Leaf(token::LeafBlock::Paragraph(
@@ -181,7 +184,6 @@ impl<'a> Lexer<'a> {
   }
 
   fn scan_inlines(&mut self) -> Result<Vec<token::Inline<'a>>, &'a str> {
-    self.inlines_size = 0;
     let mut inlines = vec![];
     loop {
       if self.inlines_source.is_empty() {

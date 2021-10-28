@@ -25,7 +25,7 @@ impl Rule {
       fenced_code_end: Regex::new("(^ {0,3}|\n {0,3})``` *\n?").unwrap(),
       whitespace: Regex::new("^ +").unwrap(),
       blank_line: Regex::new("^ +\n").unwrap(),
-      line: Regex::new("^(.+)(?:\n|$)").unwrap(),
+      line: Regex::new("^(.*)(?:\n|$)").unwrap(),
     }
   }
 }

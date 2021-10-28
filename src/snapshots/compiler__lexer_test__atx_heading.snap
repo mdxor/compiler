@@ -175,6 +175,5 @@ expression: tokenizes(cases)
       - Leaf:
           Heading:
             level: 3
-            inlines:
-              - Text: ""
+            inlines: []
 
