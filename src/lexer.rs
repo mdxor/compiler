@@ -80,6 +80,74 @@ impl<'source> Lexer<'source> {
     self.move_by(size);
   }
 
+  fn scan_block_start_token(&mut self, keyword: u8, max_size: usize) -> Option<usize> {
+    let mut size = 0;
+    for &b in self.bytes() {
+      if b == b' ' || b == b'\n' {
+        break;
+      } else if b == keyword {
+        size += 1;
+      } else {
+        return None;
+      }
+    }
+    if size == 0 {
+      None
+    } else {
+      Some(size)
+    }
+  }
+
+  fn scan_single_keyword_cur_line(
+    &mut self,
+    keyword: u8,
+    allow_internal_spaces: bool,
+  ) -> Option<usize> {
+    let mut size = 0;
+    let mut starting_spaces = true;
+    let mut ending_spaces = false;
+    for &b in self.bytes() {
+      if b == b'\n' {
+        if size > 0 {
+          size += 1;
+        }
+        break;
+      }
+      if starting_spaces {
+        if b == keyword {
+          starting_spaces = false;
+          size += 1;
+        } else if b == b' ' {
+          size += 1
+        } else {
+          return None;
+        }
+      } else if ending_spaces {
+        if b == b' ' {
+          size += 1
+        } else {
+          return None;
+        }
+      } else {
+        if b == keyword {
+          size += 1
+        } else if b == b' ' {
+          if !allow_internal_spaces {
+            ending_spaces = true;
+          }
+          size += 1;
+        } else {
+          return None;
+        }
+      }
+    }
+    if size == 0 {
+      None
+    } else {
+      Some(size)
+    }
+  }
+
   fn match_block_start_token(&mut self, t: &'source str) -> Option<token::Block> {
     match t {
       "#" => Some(token::Block::Leaf(token::LeafBlock::Heading1)),
