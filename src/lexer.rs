@@ -6,7 +6,6 @@ pub struct Lexer<'source> {
   _bytes: &'source [u8],
   offset: usize,
 }
-const BLOCK_TOKEN_MAX_SIZE: usize = 6;
 impl<'source> Lexer<'source> {
   pub fn new(source: &'source str) -> Self {
     Lexer {
@@ -60,21 +59,6 @@ impl<'source> Lexer<'source> {
     size
   }
 
-  fn scan_token(&mut self) -> Option<&'source str> {
-    let mut size = 0;
-    for &b in self.bytes() {
-      if b == b' ' || b == b'\n' {
-        break;
-      } else {
-        size += 1;
-        if size > BLOCK_TOKEN_MAX_SIZE {
-          return None;
-        }
-      }
-    }
-    Some(&self.source()[size..])
-  }
-
   fn skip_whitespace(&mut self) {
     let size = self.count_starts_whitespace();
     self.move_by(size);
@@ -87,6 +71,9 @@ impl<'source> Lexer<'source> {
         break;
       } else if b == keyword {
         size += 1;
+        if size > max_size {
+          return None;
+        }
       } else {
         return None;
       }
@@ -148,15 +135,27 @@ impl<'source> Lexer<'source> {
     }
   }
 
-  fn match_block_start_token(&mut self, t: &'source str) -> Option<token::Block> {
-    match t {
-      "#" => Some(token::Block::Leaf(token::LeafBlock::Heading1)),
-      "##" => Some(token::Block::Leaf(token::LeafBlock::Heading2)),
-      "###" => Some(token::Block::Leaf(token::LeafBlock::Heading3)),
-      "####" => Some(token::Block::Leaf(token::LeafBlock::Heading4)),
-      "#####" => Some(token::Block::Leaf(token::LeafBlock::Heading5)),
-      "######" => Some(token::Block::Leaf(token::LeafBlock::Heading6)),
-      _ => None,
+  fn scan_atx_heading(&mut self) -> Option<token::LeafBlock> {
+    if let Some(size) = self.scan_block_start_token(b'#', 6) {
+      match size {
+        1 => Some(token::LeafBlock::Heading1),
+        2 => Some(token::LeafBlock::Heading2),
+        3 => Some(token::LeafBlock::Heading3),
+        4 => Some(token::LeafBlock::Heading4),
+        5 => Some(token::LeafBlock::Heading5),
+        6 => Some(token::LeafBlock::Heading6),
+        _ => None,
+      }
+    } else {
+      None
+    }
+  }
+
+  fn scan_block(&mut self) -> Option<token::Block> {
+    if let Some(heading) = self.scan_atx_heading() {
+      Some(token::Block::Leaf(heading))
+    } else {
+      None
     }
   }
 
@@ -170,18 +169,11 @@ impl<'source> Lexer<'source> {
       self.move_by(whitespace_size);
       None
     } else {
-      let maybe_token = self.scan_token();
-      let mut block: Option<token::Block> = None;
-      if let Some(t) = maybe_token {
-        block = self.match_block_start_token(t);
-        if let Some(_) = block {
-          self.move_by(t.len());
-        }
+      if let Some(block) = self.scan_block() {
+        Some(block)
+      } else {
+        Some(token::Block::Leaf(token::LeafBlock::Paragraph))
       }
-      if let None = block {
-        block = Some(token::Block::Leaf(token::LeafBlock::Paragraph));
-      }
-      block
     }
   }
 
