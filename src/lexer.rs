@@ -27,10 +27,14 @@ impl<'source> Lexer<'source> {
     self._bytes[self.offset]
   }
 
-  fn move_by(&mut self, size: usize) -> &'source str {
+  fn forward_slice(&mut self, size: usize) -> &'source str {
     let result = &self.source()[0..size];
     self.offset += size;
     result
+  }
+
+  fn forward(&mut self, size: usize) {
+    self.offset += size;
   }
 
   fn scan_blank_line(&mut self) -> Option<usize> {
@@ -61,13 +65,17 @@ impl<'source> Lexer<'source> {
 
   fn skip_whitespace(&mut self) {
     let size = self.count_starts_whitespace();
-    self.move_by(size);
+    self.forward(size);
   }
 
+  // return the keyword size, not the whole size
   fn scan_block_start_token(&mut self, keyword: u8, max_size: usize) -> Option<usize> {
     let mut size = 0;
     for &b in self.bytes() {
       if b == b' ' || b == b'\n' {
+        if size > 0 {
+          self.forward(1);
+        }
         break;
       } else if b == keyword {
         size += 1;
@@ -81,6 +89,7 @@ impl<'source> Lexer<'source> {
     if size == 0 {
       None
     } else {
+      self.forward(size);
       Some(size)
     }
   }
@@ -89,7 +98,7 @@ impl<'source> Lexer<'source> {
     &mut self,
     keyword: u8,
     allow_internal_spaces: bool,
-  ) -> Option<usize> {
+  ) -> Option<()> {
     let mut size = 0;
     let mut starting_spaces = true;
     let mut ending_spaces = false;
@@ -131,21 +140,24 @@ impl<'source> Lexer<'source> {
     if size == 0 {
       None
     } else {
-      Some(size)
+      self.forward(size);
+      Some(())
     }
   }
 
   fn scan_atx_heading(&mut self) -> Option<token::LeafBlock> {
     if let Some(size) = self.scan_block_start_token(b'#', 6) {
-      match size {
-        1 => Some(token::LeafBlock::Heading1),
-        2 => Some(token::LeafBlock::Heading2),
-        3 => Some(token::LeafBlock::Heading3),
-        4 => Some(token::LeafBlock::Heading4),
-        5 => Some(token::LeafBlock::Heading5),
-        6 => Some(token::LeafBlock::Heading6),
-        _ => None,
-      }
+      Some(token::LeafBlock::ATXHeading(size as u8))
+    } else {
+      None
+    }
+  }
+
+  fn scan_setext_heading(&mut self) -> Option<token::LeafBlock> {
+    if let Some(()) = self.scan_single_keyword_cur_line(b'=', false) {
+      Some(token::LeafBlock::SetextHeading(1))
+    } else if let Some(()) = self.scan_single_keyword_cur_line(b'-', false) {
+      Some(token::LeafBlock::SetextHeading(2))
     } else {
       None
     }
@@ -153,6 +165,8 @@ impl<'source> Lexer<'source> {
 
   fn scan_block(&mut self) -> Option<token::Block> {
     if let Some(heading) = self.scan_atx_heading() {
+      Some(token::Block::Leaf(heading))
+    } else if let Some(heading) = self.scan_setext_heading() {
       Some(token::Block::Leaf(heading))
     } else {
       None
@@ -166,7 +180,7 @@ impl<'source> Lexer<'source> {
     // TODO: handle Indented Code, List
     let whitespace_size = self.count_starts_whitespace();
     if whitespace_size < 4 {
-      self.move_by(whitespace_size);
+      self.forward(whitespace_size);
       None
     } else {
       if let Some(block) = self.scan_block() {

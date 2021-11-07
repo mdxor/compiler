@@ -37,12 +37,8 @@ pub enum ContainerBlock {
 #[cfg_attr(test, derive(Serialize))]
 pub enum LeafBlock {
   ThematicBreak,
-  Heading1,
-  Heading2,
-  Heading3,
-  Heading4,
-  Heading5,
-  Heading6,
+  ATXHeading(u8),
+  SetextHeading(u8),
   IndentedCode,
   FencedCode,
   JSX,
