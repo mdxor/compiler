@@ -1,4 +1,5 @@
 use crate::jsx;
+use crate::lexer_base::LexerBase;
 use crate::token;
 
 pub struct Lexer<'source> {
@@ -6,15 +7,8 @@ pub struct Lexer<'source> {
   _bytes: &'source [u8],
   offset: usize,
 }
-impl<'source> Lexer<'source> {
-  pub fn new(source: &'source str) -> Self {
-    Lexer {
-      _source: source,
-      _bytes: source.as_bytes(),
-      offset: 0,
-    }
-  }
 
+impl<'source> LexerBase<'source> for Lexer<'source> {
   fn source(&mut self) -> &'source str {
     &self._source[self.offset..]
   }
@@ -36,117 +30,19 @@ impl<'source> Lexer<'source> {
   fn forward(&mut self, size: usize) {
     self.offset += size;
   }
+}
 
-  fn scan_blank_line(&mut self) -> Option<usize> {
-    let mut size = 0;
-    for &b in self.bytes() {
-      if b == b' ' {
-        size += 1;
-      } else if b == b'\n' {
-        return Some(size);
-      } else {
-        return None;
-      }
-    }
-    Some(size)
-  }
-
-  fn count_starts_whitespace(&mut self) -> usize {
-    let mut size = 0;
-    for &b in self.bytes() {
-      if b == b' ' {
-        size += 1;
-      } else {
-        break;
-      }
-    }
-    size
-  }
-
-  fn skip_whitespace(&mut self) {
-    let size = self.count_starts_whitespace();
-    self.forward(size);
-  }
-
-  // return the keyword size, not the whole size
-  fn scan_block_start_token(&mut self, keyword: u8, max_size: usize) -> Option<usize> {
-    let mut size = 0;
-    for &b in self.bytes() {
-      if b == b' ' || b == b'\n' {
-        if size > 0 {
-          self.forward(1);
-        }
-        break;
-      } else if b == keyword {
-        size += 1;
-        if size > max_size {
-          return None;
-        }
-      } else {
-        return None;
-      }
-    }
-    if size == 0 {
-      None
-    } else {
-      self.forward(size);
-      Some(size)
-    }
-  }
-
-  fn scan_single_keyword_cur_line(
-    &mut self,
-    keyword: u8,
-    allow_internal_spaces: bool,
-  ) -> Option<()> {
-    let mut size = 0;
-    let mut starting_spaces = true;
-    let mut ending_spaces = false;
-    for &b in self.bytes() {
-      if b == b'\n' {
-        if size > 0 {
-          size += 1;
-        }
-        break;
-      }
-      if starting_spaces {
-        if b == keyword {
-          starting_spaces = false;
-          size += 1;
-        } else if b == b' ' {
-          size += 1
-        } else {
-          return None;
-        }
-      } else if ending_spaces {
-        if b == b' ' {
-          size += 1
-        } else {
-          return None;
-        }
-      } else {
-        if b == keyword {
-          size += 1
-        } else if b == b' ' {
-          if !allow_internal_spaces {
-            ending_spaces = true;
-          }
-          size += 1;
-        } else {
-          return None;
-        }
-      }
-    }
-    if size == 0 {
-      None
-    } else {
-      self.forward(size);
-      Some(())
+impl<'source> Lexer<'source> {
+  pub fn new(source: &'source str) -> Self {
+    Lexer {
+      _source: source,
+      _bytes: source.as_bytes(),
+      offset: 0,
     }
   }
 
   fn scan_atx_heading(&mut self) -> Option<token::LeafBlock> {
-    if let Some(size) = self.scan_block_start_token(b'#', 6) {
+    if let Some(size) = self.scan_block_starting_token(b'#', 6) {
       Some(token::LeafBlock::ATXHeading(size as u8))
     } else {
       None
@@ -154,9 +50,9 @@ impl<'source> Lexer<'source> {
   }
 
   fn scan_setext_heading(&mut self) -> Option<token::LeafBlock> {
-    if let Some(()) = self.scan_single_keyword_cur_line(b'=', false) {
+    if self.match_keyword_cur_line(b'=', false) {
       Some(token::LeafBlock::SetextHeading(1))
-    } else if let Some(()) = self.scan_single_keyword_cur_line(b'-', false) {
+    } else if self.match_keyword_cur_line(b'-', false) {
       Some(token::LeafBlock::SetextHeading(2))
     } else {
       None
@@ -178,7 +74,7 @@ impl<'source> Lexer<'source> {
       return None;
     }
     // TODO: handle Indented Code, List
-    let whitespace_size = self.count_starts_whitespace();
+    let whitespace_size = self.count_starting_whitespace();
     if whitespace_size < 4 {
       self.forward(whitespace_size);
       None

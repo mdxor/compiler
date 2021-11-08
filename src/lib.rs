@@ -8,6 +8,7 @@ mod jsx_test;
 pub mod lexer;
 // #[cfg(test)]
 // mod lexer_test;
+mod lexer_base;
 mod rule;
 mod token;
 // mod parse;
