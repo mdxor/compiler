@@ -59,11 +59,21 @@ impl<'source> Lexer<'source> {
     }
   }
 
+  fn scan_thematic_break(&mut self) -> Option<token::LeafBlock> {
+    if self.match_keywords_cur_line(vec![b'*', b'-', b'_'], true) {
+      Some(token::LeafBlock::ThematicBreak)
+    } else {
+      None
+    }
+  }
+
   fn scan_block(&mut self) -> Option<token::Block> {
     if let Some(heading) = self.scan_atx_heading() {
       Some(token::Block::Leaf(heading))
     } else if let Some(heading) = self.scan_setext_heading() {
       Some(token::Block::Leaf(heading))
+    } else if let Some(thematic_break) = self.scan_thematic_break() {
+      Some(token::Block::Leaf(thematic_break))
     } else {
       None
     }

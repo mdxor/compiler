@@ -112,4 +112,13 @@ pub trait LexerBase<'source> {
       true
     }
   }
+
+  fn match_keywords_cur_line(&mut self, keywords: Vec<u8>, allow_internal_spaces: bool) -> bool {
+    for keyword in keywords {
+      if self.match_keyword_cur_line(keyword, allow_internal_spaces) {
+        return true;
+      }
+    }
+    return false;
+  }
 }
