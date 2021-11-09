@@ -1,4 +1,4 @@
-pub trait LexerBase<'source> {
+pub trait Scanner<'source> {
   fn source(&mut self) -> &'source str;
 
   fn bytes(&mut self) -> &[u8];

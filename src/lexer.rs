@@ -1,5 +1,5 @@
 use crate::jsx;
-use crate::lexer_base::LexerBase;
+use crate::scanner::Scanner;
 use crate::token;
 
 pub struct Lexer<'source> {
@@ -8,7 +8,7 @@ pub struct Lexer<'source> {
   offset: usize,
 }
 
-impl<'source> LexerBase<'source> for Lexer<'source> {
+impl<'source> Scanner<'source> for Lexer<'source> {
   fn source(&mut self) -> &'source str {
     &self._source[self.offset..]
   }
