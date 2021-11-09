@@ -1,7 +1,7 @@
 use crate::jsx;
 use crate::scanner::Scanner;
 use crate::token;
-
+const MAX: usize = usize::max_value();
 pub struct Lexer<'source> {
   _source: &'source str,
   _bytes: &'source [u8],
@@ -42,7 +42,7 @@ impl<'source> Lexer<'source> {
   }
 
   fn scan_atx_heading(&mut self) -> Option<token::LeafBlock> {
-    if let Some(size) = self.scan_block_starting_token(b'#', 6) {
+    if let Some(size) = self.scan_block_starting_token(b'#', 1, 6) {
       Some(token::LeafBlock::ATXHeading(size as u8))
     } else {
       None
@@ -67,6 +67,14 @@ impl<'source> Lexer<'source> {
     }
   }
 
+  fn scan_fenced_code(&mut self) -> Option<token::LeafBlock> {
+    if let Some(size) = self.scan_block_starting_token(b'`', 3, MAX) {
+      Some(token::LeafBlock::FencedCode(size))
+    } else {
+      None
+    }
+  }
+
   fn scan_block(&mut self) -> Option<token::Block> {
     if let Some(heading) = self.scan_atx_heading() {
       Some(token::Block::Leaf(heading))
@@ -74,6 +82,8 @@ impl<'source> Lexer<'source> {
       Some(token::Block::Leaf(heading))
     } else if let Some(thematic_break) = self.scan_thematic_break() {
       Some(token::Block::Leaf(thematic_break))
+    } else if let Some(fenced_code) = self.scan_fenced_code() {
+      Some(token::Block::Leaf(fenced_code))
     } else {
       None
     }
@@ -83,12 +93,11 @@ impl<'source> Lexer<'source> {
     if self.source().is_empty() {
       return None;
     }
-    // TODO: handle Indented Code, List
     let whitespace_size = self.count_starting_whitespace();
-    if whitespace_size < 4 {
-      self.forward(whitespace_size);
-      None
+    if whitespace_size >= 4 {
+      Some(token::Block::Leaf(token::LeafBlock::IndentedCode))
     } else {
+      self.forward(whitespace_size);
       if let Some(block) = self.scan_block() {
         Some(block)
       } else {

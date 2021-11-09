@@ -41,13 +41,20 @@ pub trait Scanner<'source> {
   }
 
   // return the keyword size, not the whole size
-  fn scan_block_starting_token(&mut self, keyword: u8, max_size: usize) -> Option<usize> {
+  fn scan_block_starting_token(
+    &mut self,
+    keyword: u8,
+    min_size: usize,
+    max_size: usize,
+  ) -> Option<usize> {
     let mut size = 0;
     for &b in self.bytes() {
-      if b == b' ' || b == b'\n' {
-        if size > 0 {
+      if b == b' ' {
+        if size >= min_size {
           self.forward(1);
         }
+        break;
+      } else if b == b'\n' {
         break;
       } else if b == keyword {
         size += 1;
@@ -58,17 +65,16 @@ pub trait Scanner<'source> {
         return None;
       }
     }
-    if size == 0 {
-      None
-    } else {
+    if size >= min_size {
       self.forward(size);
       Some(size)
+    } else {
+      None
     }
   }
 
   fn match_keyword_cur_line(&mut self, keyword: u8, allow_internal_spaces: bool) -> bool {
     let mut size = 0;
-    let mut starting_spaces = true;
     let mut ending_spaces = false;
     for &b in self.bytes() {
       if b == b'\n' {
@@ -77,16 +83,7 @@ pub trait Scanner<'source> {
         }
         break;
       }
-      if starting_spaces {
-        if b == keyword {
-          starting_spaces = false;
-          size += 1;
-        } else if b == b' ' {
-          size += 1
-        } else {
-          return false;
-        }
-      } else if ending_spaces {
+      if ending_spaces {
         if b == b' ' {
           size += 1
         } else {

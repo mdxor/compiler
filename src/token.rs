@@ -40,7 +40,7 @@ pub enum LeafBlock {
   ATXHeading(u8),
   SetextHeading(u8),
   IndentedCode,
-  FencedCode,
+  FencedCode(usize),
   JSX,
   Paragraph,
   BlankLine,
