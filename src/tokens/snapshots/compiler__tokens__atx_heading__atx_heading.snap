@@ -1,0 +1,26 @@
+---
+source: src/tokens/atx_heading.rs
+expression: results
+
+---
+- level: 1
+  raw_inlines: foo
+- level: 2
+  raw_inlines: foo
+- level: 3
+  raw_inlines: foo
+- level: 4
+  raw_inlines: foo
+- level: 5
+  raw_inlines: foo
+- level: 6
+  raw_inlines: foo
+- ~
+- ~
+- ~
+- ~
+- level: 1
+  raw_inlines: "foo *bar* \\*baz\\*"
+- level: 3
+  raw_inlines: ""
+
