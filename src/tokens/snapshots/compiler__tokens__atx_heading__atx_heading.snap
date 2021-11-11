@@ -23,4 +23,10 @@ expression: results
   raw_inlines: "foo *bar* \\*baz\\*"
 - level: 3
   raw_inlines: ""
+- level: 1
+  raw_inlines: "foo#"
+- level: 1
+  raw_inlines: foo
+- level: 1
+  raw_inlines: ""
 

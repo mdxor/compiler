@@ -8,7 +8,6 @@ mod jsx_test;
 // pub mod tokenizer;
 // #[cfg(test)]
 // mod lexer_test;
-mod rule;
 mod tokens;
 // mod scanner;
 // mod parse;
