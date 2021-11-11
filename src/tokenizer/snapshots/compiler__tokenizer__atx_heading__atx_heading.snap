@@ -1,0 +1,65 @@
+---
+source: src/tokenizer/atx_heading.rs
+expression: results
+
+---
+- size: 5
+  token:
+    ATXHeading:
+      level: 1
+      raw_inlines: foo
+- size: 6
+  token:
+    ATXHeading:
+      level: 2
+      raw_inlines: foo
+- size: 7
+  token:
+    ATXHeading:
+      level: 3
+      raw_inlines: foo
+- size: 8
+  token:
+    ATXHeading:
+      level: 4
+      raw_inlines: foo
+- size: 9
+  token:
+    ATXHeading:
+      level: 5
+      raw_inlines: foo
+- size: 10
+  token:
+    ATXHeading:
+      level: 6
+      raw_inlines: foo
+- ~
+- ~
+- ~
+- ~
+- size: 19
+  token:
+    ATXHeading:
+      level: 1
+      raw_inlines: "foo *bar* \\*baz\\*"
+- size: 3
+  token:
+    ATXHeading:
+      level: 3
+      raw_inlines: ""
+- size: 6
+  token:
+    ATXHeading:
+      level: 1
+      raw_inlines: "foo#"
+- size: 7
+  token:
+    ATXHeading:
+      level: 1
+      raw_inlines: foo
+- size: 3
+  token:
+    ATXHeading:
+      level: 1
+      raw_inlines: ""
+

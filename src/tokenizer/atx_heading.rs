@@ -1,20 +1,24 @@
-use crate::tokens::def::*;
-use crate::tokens::rule;
+use crate::tokenizer::rule;
+use crate::tokenizer::token::*;
 use lazy_static::lazy_static;
 use regex::Regex;
-pub fn atx_heading(source: &str) -> Option<ATXHeading> {
+pub fn atx_heading(source: &str) -> Option<TokenResult> {
   lazy_static! {
     static ref RULE: Regex = Regex::new(rule::ATX_HEADING_RULE).unwrap();
     static ref CLOSING_RULE: Regex = Regex::new(rule::ATX_HEADING_CLOSING_RULE).unwrap();
   }
   if let Some(caps) = RULE.captures(source) {
+    let size = caps.get(0).unwrap().as_str().len();
     let level = caps.get(1).unwrap().as_str().len();
     let mut raw_inlines = caps.get(2).map_or("", |v| v.as_str());
     if let Some(caps) = CLOSING_RULE.captures(raw_inlines) {
-      let size = caps.get(0).map_or(0, |v| v.as_str().len());
-      raw_inlines = &raw_inlines[..raw_inlines.len() - size];
+      let closing_size = caps.get(0).map_or(0, |v| v.as_str().len());
+      raw_inlines = &raw_inlines[..raw_inlines.len() - closing_size];
     }
-    Some(ATXHeading { level, raw_inlines })
+    Some(TokenResult {
+      size,
+      token: Token::ATXHeading(ATXHeading { level, raw_inlines }),
+    })
   } else {
     None
   }

@@ -1,0 +1,12 @@
+---
+source: src/tokenizer/thematic_break.rs
+expression: results
+
+---
+- size: 3
+  token: ThematicBreak
+- size: 3
+  token: ThematicBreak
+- size: 4
+  token: ThematicBreak
+

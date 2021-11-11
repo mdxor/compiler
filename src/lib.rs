@@ -5,11 +5,7 @@ use wasm_bindgen::prelude::*;
 mod jsx;
 #[cfg(test)]
 mod jsx_test;
-// pub mod tokenizer;
-// #[cfg(test)]
-// mod lexer_test;
-mod tokens;
-// mod scanner;
+mod tokenizer;
 // mod parse;
 
 #[wasm_bindgen]
