@@ -14,6 +14,7 @@ pub enum Token<'source> {
   ATXHeading(ATXHeading<'source>),
   ThematicBreak,
   SetextHeading(SetextHeading<'source>),
+  IndentedCode(IndentedCode<'source>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -28,4 +29,10 @@ pub struct ATXHeading<'source> {
 pub struct SetextHeading<'source> {
   pub level: usize,
   pub raw: &'source str,
+}
+
+#[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
+pub struct IndentedCode<'source> {
+  pub codes: Vec<&'source str>,
 }
