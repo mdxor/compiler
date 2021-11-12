@@ -15,6 +15,7 @@ pub enum Token<'source> {
   ThematicBreak,
   SetextHeading(SetextHeading<'source>),
   IndentedCode(IndentedCode<'source>),
+  FencedCode(FencedCode<'source>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -35,4 +36,12 @@ pub struct SetextHeading<'source> {
 #[cfg_attr(test, derive(Serialize))]
 pub struct IndentedCode<'source> {
   pub codes: Vec<&'source str>,
+}
+
+#[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
+pub struct FencedCode<'source> {
+  pub code: &'source str,
+  pub meta_string: &'source str,
+  pub language: &'source str,
 }
