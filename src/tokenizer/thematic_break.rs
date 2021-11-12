@@ -19,7 +19,7 @@ pub fn thematic_break(source: &str) -> Option<TokenResult> {
 
 #[test]
 fn test_thematic_break() {
-  let cases = vec!["***", "---", "___\n"];
+  let cases = vec!["***", "---", "___\n", " **  * ** * ** * **"];
   let mut results = vec![];
   for case in cases {
     results.push(thematic_break(case));
