@@ -5,3 +5,8 @@ pub const SETEXT_HEADING_RULE: &str = "^(=+|-+) *(?:\n+|$)";
 pub const INDENTED_CODE_RULE: &str = "^( {4}[^\n]+(?:\n(?: *(?:\n|$))*)?)+";
 pub const FENCED_CODE_HEAD_RULE: &str = r"^(`{3,})([^`\n]*)\n|^(~{3,})([^\n]*)\n";
 pub const FENCED_CODE_BODY_RULE: &str = r"^(?:|([\s\S]*?)\n) {0,3}`{3,} *(?:\n|$)|$";
+
+pub const LABEL_RULE: &str = r"(?:\\[\[\]]|[^\[\]])+";
+pub const TITLE_RULE: &str = r#"(?:"(?:\\"?|[^"\\])*"|'[^'\n]*(?:\n[^'\n]+)*\n?'|\([^()]*\))"#;
+pub const LINK_DEFINITION_RULE: &str =
+  r"\[(label)\]: *\n? *<?([^\s>]+)>?(?:(?: +\n? *| *\n *)(title))? *(?:\n+|$)";

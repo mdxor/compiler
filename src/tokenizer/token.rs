@@ -16,6 +16,7 @@ pub enum Token<'source> {
   SetextHeading(SetextHeading<'source>),
   IndentedCode(IndentedCode<'source>),
   FencedCode(FencedCode<'source>),
+  LinkDefinition(LinkDefinition<'source>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -44,4 +45,12 @@ pub struct FencedCode<'source> {
   pub code: &'source str,
   pub meta_string: &'source str,
   pub language: &'source str,
+}
+
+#[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
+pub struct LinkDefinition<'source> {
+  pub href: &'source str,
+  pub title: &'source str,
+  pub label: &'source str,
 }
