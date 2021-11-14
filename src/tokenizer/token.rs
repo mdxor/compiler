@@ -18,8 +18,8 @@ pub enum Token<'source> {
   FencedCode(FencedCode<'source>),
   LinkDefinition(LinkDefinition<'source>),
   BlockQuote,
-  BulletListItem,
-  OrderedListItem(OrderedListItem),
+  BulletListItem(BulletListItem<'source>),
+  OrderedListItem(OrderedListItem<'source>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -56,8 +56,18 @@ pub struct LinkDefinition<'source> {
   pub title: &'source str,
   pub label: &'source str,
 }
+
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
-pub struct OrderedListItem {
+pub struct BulletListItem<'source> {
+  // *, -, +
+  pub kind: &'source str,
+}
+
+#[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
+pub struct OrderedListItem<'source> {
+  // ., )
+  pub kind: &'source str,
   pub order: u32,
 }

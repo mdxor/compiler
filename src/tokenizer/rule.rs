@@ -13,4 +13,4 @@ pub const LINK_DEFINITION_RULE: &str =
   r"\[(label)\]: *\n? *<?([^\s>]+)>?(?:(?: +\n? *| *\n *)(title))? *(?:\n+|$)";
 
 pub const BLOCK_QUOTE: &str = "^> ?";
-pub const LIST_ITEM_RULE: &str = r"^([*+-]) |(\d{1,9})[.)] ";
+pub const LIST_ITEM_RULE: &str = r"^([*+-]) |(\d{1,9})([.)]) ";

@@ -4,17 +4,30 @@ expression: results
 
 ---
 - size: 2
-  token: BulletListItem
+  token:
+    BulletListItem:
+      kind: "-"
+- size: 2
+  token:
+    BulletListItem:
+      kind: "*"
+- size: 2
+  token:
+    BulletListItem:
+      kind: +
 - size: 3
   token:
     OrderedListItem:
+      kind: "."
       order: 1
 - size: 5
   token:
     OrderedListItem:
+      kind: "."
       order: 123
 - size: 11
   token:
     OrderedListItem:
+      kind: )
       order: 123456789
 
