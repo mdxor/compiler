@@ -1,0 +1,20 @@
+---
+source: src/tokenizer/list_item.rs
+expression: results
+
+---
+- size: 2
+  token: BulletListItem
+- size: 3
+  token:
+    OrderedListItem:
+      order: 1
+- size: 5
+  token:
+    OrderedListItem:
+      order: 123
+- size: 11
+  token:
+    OrderedListItem:
+      order: 123456789
+
