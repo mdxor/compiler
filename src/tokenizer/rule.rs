@@ -14,3 +14,5 @@ pub const LINK_DEFINITION_RULE: &str =
 
 pub const BLOCK_QUOTE: &str = "^> ?";
 pub const LIST_ITEM_RULE: &str = r"^([*+-]) |(\d{1,9})([.)]) ";
+pub const TABLE_RULE: &str =
+  r"^ *([^\n ].*\|.*)\n {0,3}(?:\| *)?(:?-+:? *(?:\| *:?-+:? *)*)(?:\| *)?\n";

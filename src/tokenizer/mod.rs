@@ -6,5 +6,6 @@ mod link_definition;
 mod list_item;
 mod rule;
 mod setext_heading;
+mod table;
 mod thematic_break;
 mod token;
