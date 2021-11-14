@@ -13,10 +13,11 @@ pub struct TokenResult<'source> {
 pub enum Token<'source> {
   ATXHeading(ATXHeading<'source>),
   ThematicBreak,
-  SetextHeading(SetextHeading<'source>),
+  SetextHeading(SetextHeading),
   IndentedCode(IndentedCode<'source>),
   FencedCode(FencedCode<'source>),
   LinkDefinition(LinkDefinition<'source>),
+  BlockQuote,
 }
 
 #[derive(Debug, PartialEq)]
@@ -28,9 +29,8 @@ pub struct ATXHeading<'source> {
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
-pub struct SetextHeading<'source> {
+pub struct SetextHeading {
   pub level: usize,
-  pub raw: &'source str,
 }
 
 #[derive(Debug, PartialEq)]

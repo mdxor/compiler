@@ -12,7 +12,7 @@ pub fn setext_heading(source: &str) -> Option<TokenResult> {
     let size = raw.len();
     Some(TokenResult {
       size,
-      token: Token::SetextHeading(SetextHeading { raw, level }),
+      token: Token::SetextHeading(SetextHeading { level }),
     })
   } else {
     None
