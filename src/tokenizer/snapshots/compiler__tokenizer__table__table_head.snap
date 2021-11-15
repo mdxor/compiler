@@ -1,0 +1,10 @@
+---
+source: src/tokenizer/table.rs
+expression: results
+
+---
+- size: 27
+  token:
+    TableHead:
+      column_number: 2
+

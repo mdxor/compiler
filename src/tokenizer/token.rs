@@ -20,6 +20,7 @@ pub enum Token<'source> {
   BlockQuote,
   BulletListItem(BulletListItem<'source>),
   OrderedListItem(OrderedListItem<'source>),
+  TableHead(TableHead),
 }
 
 #[derive(Debug, PartialEq)]
@@ -70,4 +71,10 @@ pub struct OrderedListItem<'source> {
   // ., )
   pub kind: &'source str,
   pub order: u32,
+}
+
+#[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
+pub struct TableHead {
+  pub column_number: usize,
 }
