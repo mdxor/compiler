@@ -20,7 +20,7 @@ pub enum Token<'source> {
   BlockQuote,
   BulletListItem(BulletListItem<'source>),
   OrderedListItem(OrderedListItem<'source>),
-  TableHead(TableHead),
+  TableCell(TableCell<'source>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -75,6 +75,7 @@ pub struct OrderedListItem<'source> {
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Serialize))]
-pub struct TableHead {
-  pub column_number: usize,
+pub struct TableCell<'source> {
+  pub head: bool,
+  pub columns: Vec<&'source str>,
 }

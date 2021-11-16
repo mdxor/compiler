@@ -5,6 +5,9 @@ expression: results
 ---
 - size: 27
   token:
-    TableHead:
-      column_number: 2
+    TableCell:
+      head: true
+      columns:
+        - "foo "
+        - "bar "
 
