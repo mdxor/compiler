@@ -3,7 +3,7 @@ use crate::tokenizer::token::*;
 use lazy_static::lazy_static;
 use regex::Regex;
 
-fn _table_cell(source: &str) -> Option<TableCell> {
+fn _table_cell(source: &str) -> Option<(TableCell, usize)> {
   let mut bytes = source.bytes();
   let mut columns = vec![];
   let mut start = 0;
@@ -30,8 +30,8 @@ fn _table_cell(source: &str) -> Option<TableCell> {
           if !source[start..end].is_empty() {
             columns.push(&source[start..end]);
           }
-          start = size + 1;
-          end = size + 1;
+          start = size;
+          end = size;
         }
         _ => {
           end = size;
@@ -47,10 +47,13 @@ fn _table_cell(source: &str) -> Option<TableCell> {
     }
   }
   if columns.len() > 0 {
-    Some(TableCell {
-      head: false,
-      columns,
-    })
+    Some((
+      TableCell {
+        head: false,
+        columns,
+      },
+      size,
+    ))
   } else {
     None
   }
@@ -69,11 +72,11 @@ pub fn table_head(source: &str) -> Option<TokenResult> {
       return None;
     }
 
-    if let Some(align_cell) = _table_cell(align) {
+    if let Some((align_cell, _)) = _table_cell(align) {
       if align_cell.columns.len() == 0 && !align.starts_with("|") && !align.ends_with("|") {
         return None;
       }
-      if let Some(head_cell) = _table_cell(head) {
+      if let Some((head_cell, _)) = _table_cell(head) {
         if align_cell.columns.len() != head_cell.columns.len() {
           return None;
         }

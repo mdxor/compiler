@@ -8,6 +8,6 @@ expression: results
     TableCell:
       head: true
       columns:
-        - "foo "
-        - "bar "
+        - " foo "
+        - " bar "
 
