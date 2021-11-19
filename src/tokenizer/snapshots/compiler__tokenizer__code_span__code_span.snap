@@ -1,0 +1,17 @@
+---
+source: src/tokenizer/code_span.rs
+expression: results
+
+---
+- size: 4
+  token:
+    CodeSpan: "12"
+- ~
+- size: 3
+  token:
+    CodeSpan: " "
+- size: 7
+  token:
+    CodeSpan: "123"
+- ~
+

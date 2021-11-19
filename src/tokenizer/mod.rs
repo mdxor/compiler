@@ -1,5 +1,6 @@
 mod atx_heading;
 mod block_quote;
+mod code_span;
 mod fenced_code;
 mod indented_code;
 mod link_definition;

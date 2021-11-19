@@ -21,6 +21,7 @@ pub enum Token<'source> {
   BulletListItem(BulletListItem<'source>),
   OrderedListItem(OrderedListItem<'source>),
   TableCell(TableCell<'source>),
+  CodeSpan(&'source str),
 }
 
 #[derive(Debug, PartialEq)]
