@@ -5,7 +5,10 @@ use wasm_bindgen::prelude::*;
 mod jsx;
 #[cfg(test)]
 mod jsx_test;
-mod tokenizer;
+mod line;
+mod puncttable;
+mod scan;
+mod tree;
 // mod parse;
 
 #[wasm_bindgen]
