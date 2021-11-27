@@ -27,12 +27,8 @@ impl<T: Default> Tree<T> {
     }
   }
 
-  pub fn cur(&mut self) -> Option<&T> {
-    if let Some(index) = self.cur {
-      Some(&self.nodes.get(index).unwrap().item)
-    } else {
-      None
-    }
+  pub fn cur(&mut self) -> Option<usize> {
+    self.cur
   }
 
   pub fn create_node(&mut self, item: T) -> usize {

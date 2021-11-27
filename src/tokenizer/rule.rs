@@ -17,3 +17,7 @@ pub const LIST_ITEM_RULE: &str = r"^([*+-]) |(\d{1,9})([.)]) ";
 pub const TABLE_RULE: &str =
   r"^([^\n ].*\|.*)\n {0,3}((?:\| *)?:?-+:? *(?:\| *:?-+:? *)*(?:\| *)?)(?:\n+|$)";
 pub const CODE_SPAN_RULE: &str = r"^(`+)([^`]|[^`][\s\S]*?[^`])(`+)";
+
+// emStrong
+pub const LDELIM_RULE: &str = r"^(?:\*+(?:([punct_])|[^\s*]))|^_+(?:([punct*])|([^\s_]))";
+pub const RDELIMAST_RULE: &str = r"";

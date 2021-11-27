@@ -1,4 +1,4 @@
-const PUNCT_MASKS_ASCII: [u16; 8] = [
+pub(crate) const PUNCT_MASKS_ASCII: [u16; 8] = [
   0x0000, // U+0000...U+000F
   0x0000, // U+0010...U+001F
   0xfffe, // U+0020...U+002F
@@ -9,7 +9,7 @@ const PUNCT_MASKS_ASCII: [u16; 8] = [
   0x7800, // U+0070...U+007F
 ];
 
-const PUNCT_TAB: [u16; 132] = [
+pub(crate) const PUNCT_TAB: [u16; 132] = [
   10,   // U+00A0...U+00AF
   11,   // U+00B0...U+00BF
   55,   // U+0370...U+037F
@@ -144,7 +144,7 @@ const PUNCT_TAB: [u16; 132] = [
   7113, // U+1BC90...U+1BC9F
 ];
 
-const PUNCT_MASKS: [u16; 132] = [
+pub(crate) const PUNCT_MASKS: [u16; 132] = [
   0x0882, // U+00A0...U+00AF
   0x88c0, // U+00B0...U+00BF
   0x4000, // U+0370...U+037F
@@ -278,22 +278,3 @@ const PUNCT_MASKS: [u16; 132] = [
   0x0010, // U+16B40...U+16B4F
   0x8000, // U+1BC90...U+1BC9F
 ];
-
-pub(crate) fn is_ascii_punctuation(c: u8) -> bool {
-  c < 128 && (PUNCT_MASKS_ASCII[(c / 16) as usize] & (1 << (c & 15))) != 0
-}
-
-pub(crate) fn is_punctuation(c: char) -> bool {
-  let cp = c as u32;
-  if cp < 128 {
-    return is_ascii_punctuation(cp as u8);
-  }
-  if cp > 0x1BC9F {
-    return false;
-  }
-  let high = (cp / 16) as u16;
-  match PUNCT_TAB.binary_search(&high) {
-    Ok(index) => (PUNCT_MASKS[index] & (1 << (cp & 15))) != 0,
-    _ => false,
-  }
-}

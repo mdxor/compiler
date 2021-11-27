@@ -22,6 +22,7 @@ pub enum Token<'source> {
   OrderedListItem(OrderedListItem<'source>),
   TableCell(TableCell<'source>),
   CodeSpan(&'source str),
+  Emphasis(Emphasis<'source>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -79,4 +80,10 @@ pub struct OrderedListItem<'source> {
 pub struct TableCell<'source> {
   pub head: bool,
   pub columns: Vec<&'source str>,
+}
+#[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Serialize))]
+pub struct Emphasis<'source> {
+  pub strong: bool,
+  pub raw_inlines: &'source str,
 }

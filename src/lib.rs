@@ -2,14 +2,16 @@ extern crate wasm_bindgen;
 
 use wasm_bindgen::prelude::*;
 
+mod block;
+mod byte;
 mod jsx;
 #[cfg(test)]
 mod jsx_test;
-mod line;
-mod puncttable;
+mod parser;
+mod punctuation;
 mod scan;
+mod token;
 mod tree;
-// mod parse;
 
 #[wasm_bindgen]
 pub fn transform(code: &str) -> String {
