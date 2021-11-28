@@ -23,7 +23,7 @@ impl<T: Default> Tree<T> {
     Tree {
       nodes,
       spine: vec![],
-      cur: None,
+      cur: Some(0),
     }
   }
 

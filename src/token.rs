@@ -4,6 +4,17 @@ pub struct Token<'source> {
   pub end: usize,
   pub body: TokenBody<'source>,
 }
+
+impl<'source> Default for Token<'source> {
+  fn default() -> Self {
+    Token {
+      start: 0,
+      end: 0,
+      body: TokenBody::Root,
+    }
+  }
+}
+
 #[derive(Eq, PartialEq, Debug)]
 pub enum HeadingLevel {
   H1,
@@ -33,6 +44,9 @@ pub enum TokenBody<'source> {
   // transition token body
   Raw(&'source str),
   // final token body
+  Root,
+  Paragraph,
   Text(&'source str),
   ATXHeading(HeadingLevel),
+  SetextHeading(HeadingLevel),
 }

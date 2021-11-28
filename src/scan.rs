@@ -54,6 +54,6 @@ pub(crate) fn scan_blank_line(bytes: &[u8]) -> Option<usize> {
   scan_eol(&bytes[i..]).map(|n| i + n)
 }
 
-pub(crate) fn scan_nextline(bytes: &[u8]) -> usize {
+pub(crate) fn scan_raw_line(bytes: &[u8]) -> usize {
   memchr(b'\n', bytes).map_or(bytes.len(), |x| x + 1)
 }
