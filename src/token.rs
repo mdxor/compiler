@@ -1,4 +1,7 @@
+#[cfg(test)]
+use serde::Serialize;
 #[derive(Eq, PartialEq, Debug)]
+#[cfg_attr(test, derive(Serialize))]
 pub struct Token<'source> {
   pub start: usize,
   pub end: usize,
@@ -16,6 +19,7 @@ impl<'source> Default for Token<'source> {
 }
 
 #[derive(Eq, PartialEq, Debug)]
+#[cfg_attr(test, derive(Serialize))]
 pub enum HeadingLevel {
   H1,
   H2,
@@ -40,6 +44,7 @@ impl HeadingLevel {
 }
 
 #[derive(Eq, PartialEq, Debug)]
+#[cfg_attr(test, derive(Serialize))]
 pub enum TokenBody<'source> {
   // transition token body
   Raw(&'source str),

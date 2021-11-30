@@ -1,11 +1,13 @@
-#[derive(Debug, Clone, Copy)]
+#[cfg(test)]
+use serde::Serialize;
+#[cfg_attr(test, derive(Serialize))]
 pub struct Node<T> {
   pub child: Option<usize>,
   pub next: Option<usize>,
   pub item: T,
 }
 
-#[derive(Clone)]
+#[cfg_attr(test, derive(Serialize))]
 pub struct Tree<T> {
   nodes: Vec<Node<T>>,
   spine: Vec<usize>,
@@ -52,11 +54,11 @@ impl<T: Default> Tree<T> {
     next_index.unwrap()
   }
 
-  pub fn lower(&mut self) -> usize {
+  pub fn lower(&mut self) -> Option<usize> {
     let cur_index = self.cur.unwrap();
     self.spine.push(cur_index);
     self.cur = self[cur_index].child;
-    self.cur.unwrap()
+    self.cur
   }
 
   pub fn raise(&mut self) -> Option<usize> {
