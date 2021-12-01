@@ -10,7 +10,7 @@ pub(crate) fn scan_paragraph<'source>(
   let bytes = &d_bytes[offset..];
   let source = &d_source[offset..];
   let cur = tree.cur().unwrap();
-  let raw_line_size = scan_raw_line(bytes, offset);
+  let raw_line_size = scan_raw_line(bytes);
   let raw_line = &source[..raw_line_size];
   if tree[cur].item.body == TokenBody::Paragraph {
     tree.lower();

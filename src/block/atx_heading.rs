@@ -26,7 +26,7 @@ pub(crate) fn scan_atx_heading<'source>(
         end += 1;
         raw_line_start = end;
         println!("{}", raw_line_start);
-        let raw_line_size = scan_raw_line(d_bytes, raw_line_start);
+        let raw_line_size = scan_raw_line(&d_bytes[raw_line_start..]);
         raw_line = &source[raw_line_start..raw_line_start + raw_line_size];
         end += raw_line_size;
       }

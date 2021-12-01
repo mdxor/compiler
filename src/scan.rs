@@ -54,7 +54,28 @@ pub(crate) fn scan_blank_line(bytes: &[u8]) -> Option<usize> {
   scan_eol(&bytes[i..]).map(|n| i + n)
 }
 
-pub(crate) fn scan_raw_line(bytes: &[u8], offset: usize) -> usize {
-  let bytes = &bytes[offset..];
+pub(crate) fn scan_raw_line(bytes: &[u8]) -> usize {
   memchr(b'\n', bytes).map_or(bytes.len(), |x| x + 1)
+}
+
+pub(crate) fn scan_spaces(bytes: &[u8], spaces: usize) -> Option<(usize, usize)> {
+  let mut _spaces = 0;
+  let mut index = 0;
+  while index < bytes.len() {
+    match bytes[index] {
+      b' ' => {
+        index += 1;
+        _spaces += 1;
+      }
+      b'\t' => {
+        index += 1;
+        _spaces += 4;
+      }
+      _ => break,
+    }
+    if _spaces > spaces {
+      return Some((index, _spaces - spaces));
+    }
+  }
+  return None;
 }
