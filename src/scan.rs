@@ -58,6 +58,7 @@ pub(crate) fn scan_raw_line(bytes: &[u8]) -> usize {
   memchr(b'\n', bytes).map_or(bytes.len(), |x| x + 1)
 }
 
+// return the matched bytes size, and the remaining spaces
 pub(crate) fn scan_spaces(bytes: &[u8], spaces: usize) -> Option<(usize, usize)> {
   let mut _spaces = 0;
   let mut index = 0;

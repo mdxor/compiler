@@ -6,6 +6,7 @@ pub(crate) fn scan_paragraph<'source>(
   d_bytes: &'source [u8],
   offset: usize,
   tree: &mut Tree<Token<'source>>,
+  remaining: usize,
 ) {
   let bytes = &d_bytes[offset..];
   let source = &d_source[offset..];
@@ -25,7 +26,7 @@ pub(crate) fn scan_paragraph<'source>(
     tree.raise();
   }
   tree.append(Token {
-    start: offset,
+    start: offset - remaining,
     end: offset + raw_line_size,
     body: TokenBody::Paragraph,
   });
