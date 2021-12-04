@@ -9,8 +9,8 @@ pub(crate) fn scan_atx_heading<'source>(
 ) -> bool {
   let offset = document.offset;
   let remaining = document.remaining;
-  let bytes = &document.bytes[offset..];
-  let source = &document.source[offset..];
+  let bytes = document.bytes();
+  let source = document.source();
 
   let level = scan_ch_repeat(bytes, b'#');
   if bytes.get(level).copied().map_or(true, is_ascii_whitespace) {

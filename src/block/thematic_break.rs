@@ -1,0 +1,41 @@
+use super::document::*;
+use crate::byte::*;
+use crate::scan::*;
+use crate::token::*;
+use crate::tree::*;
+pub(crate) fn scan_thematic_break<'source>(
+  document: &Document<'source>,
+  tree: &mut Tree<Token<'source>>,
+) -> bool {
+  let offset = document.offset;
+  let chars = vec![b'-', b'_', b'*'];
+  let mut count = 0;
+  let mut c = b' ';
+  let size = scan_while(document.bytes(), |x| {
+    if count == 0 {
+      if chars.contains(&x) {
+        count += 1;
+        c = x;
+        return true;
+      }
+    } else {
+      if c == x {
+        count += 1;
+      }
+    }
+    if is_ascii_whitespace_no_nl(x) {
+      return true;
+    }
+    false
+  });
+  if count >= 3 {
+    tree.append(Token {
+      start: offset,
+      end: offset + size,
+      body: TokenBody::ThematicBreak,
+    });
+    true
+  } else {
+    false
+  }
+}

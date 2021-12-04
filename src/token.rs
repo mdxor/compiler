@@ -54,4 +54,5 @@ pub enum TokenBody<'source> {
   Text(&'source str),
   ATXHeading(HeadingLevel),
   SetextHeading(HeadingLevel),
+  ThematicBreak,
 }

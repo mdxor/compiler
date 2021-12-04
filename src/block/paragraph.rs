@@ -8,8 +8,8 @@ pub(crate) fn scan_paragraph<'source>(
 ) {
   let offset = document.offset;
   let remaining = document.remaining;
-  let bytes = &document.bytes[offset..];
-  let source = &document.source[offset..];
+  let bytes = document.bytes();
+  let source = document.source();
   let cur = tree.cur().unwrap();
   let raw_line_size = scan_raw_line(bytes);
   let raw_line = &source[..raw_line_size];

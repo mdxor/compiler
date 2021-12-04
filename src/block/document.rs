@@ -14,4 +14,12 @@ impl<'source> Document<'source> {
       remaining: 0,
     }
   }
+
+  pub fn bytes(&self) -> &'source [u8] {
+    &self.bytes[self.offset..]
+  }
+
+  pub fn source(&self) -> &'source str {
+    &self.source[self.offset..]
+  }
 }
