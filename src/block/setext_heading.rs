@@ -1,17 +1,18 @@
+use super::document::*;
 use crate::byte::*;
 use crate::scan::*;
 use crate::token::*;
 use crate::tree::*;
 pub(crate) fn scan_setext_heading<'source>(
-  d_bytes: &'source [u8],
-  offset: usize,
+  document: &Document<'source>,
   tree: &mut Tree<Token<'source>>,
 ) -> bool {
+  let offset = document.offset;
   let cur = tree.cur().unwrap();
   if tree[cur].item.body != TokenBody::Paragraph {
     return false;
   }
-  let bytes = &d_bytes[offset..];
+  let bytes = &document.bytes[offset..];
   if let Some(c) = bytes.get(0) {
     if *c == b'-' || *c == b'=' {
       let mut i = scan_ch_repeat(&bytes[1..], *c);

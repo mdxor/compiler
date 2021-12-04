@@ -1,15 +1,15 @@
+use super::document::*;
 use crate::scan::*;
 use crate::token::*;
 use crate::tree::*;
 pub(crate) fn scan_paragraph<'source>(
-  d_source: &'source str,
-  d_bytes: &'source [u8],
-  offset: usize,
+  document: &Document<'source>,
   tree: &mut Tree<Token<'source>>,
-  remaining: usize,
 ) {
-  let bytes = &d_bytes[offset..];
-  let source = &d_source[offset..];
+  let offset = document.offset;
+  let remaining = document.remaining;
+  let bytes = &document.bytes[offset..];
+  let source = &document.source[offset..];
   let cur = tree.cur().unwrap();
   let raw_line_size = scan_raw_line(bytes);
   let raw_line = &source[..raw_line_size];
@@ -17,7 +17,7 @@ pub(crate) fn scan_paragraph<'source>(
     tree.lower();
     let cur = tree.cur().unwrap();
     if let TokenBody::Raw(last_raw) = tree[cur].item.body {
-      let raw = &d_source[offset - last_raw.len()..offset + raw_line_size];
+      let raw = &document.source[offset - last_raw.len()..offset + raw_line_size];
       tree[cur].item.end = offset + raw_line_size;
       tree[cur].item.body = TokenBody::Raw(raw);
       tree.raise();
