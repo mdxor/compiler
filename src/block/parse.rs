@@ -4,8 +4,15 @@ use crate::token::*;
 use crate::tree::*;
 
 fn scan_block<'source>(document: &mut Document<'source>, tree: &mut Tree<Token<'source>>) {
-  let bytes = &document.bytes[document.offset..];
-  if let Some((size, remaining_spaces)) = scan_matched_spaces(bytes, 4) {
+  let bytes = document.bytes();
+  if let Some(size) = scan_blank_line(bytes) {
+    let start = document.block_start;
+    tree.append(Token {
+      start,
+      end: start + size,
+      body: TokenBody::BlankLine,
+    });
+  } else if let Some((size, remaining_spaces)) = scan_matched_spaces(document.bytes(), 4) {
     document.offset += size;
     document.remaining_spaces = remaining_spaces;
     scan_indented_code(document, tree);
