@@ -7,11 +7,12 @@ pub(crate) fn scan_thematic_break<'source>(
   document: &Document<'source>,
   tree: &mut Tree<Token<'source>>,
 ) -> bool {
+  let bytes = document.bytes();
   let offset = document.offset;
   let chars = vec![b'-', b'_', b'*'];
   let mut count = 0;
   let mut c = b' ';
-  let size = scan_while(document.bytes(), |x| {
+  let mut size = scan_while(document.bytes(), |x| {
     if count == 0 {
       if chars.contains(&x) {
         count += 1;
@@ -29,13 +30,15 @@ pub(crate) fn scan_thematic_break<'source>(
     false
   });
   if count >= 3 {
-    tree.append(Token {
-      start: offset,
-      end: offset + size,
-      body: TokenBody::ThematicBreak,
-    });
-    true
-  } else {
-    false
+    if let Some(eol_size) = scan_eol(bytes) {
+      size += eol_size;
+      tree.append(Token {
+        start: offset,
+        end: offset + size,
+        body: TokenBody::ThematicBreak,
+      });
+      return true;
+    }
   }
+  false
 }

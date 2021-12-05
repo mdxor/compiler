@@ -59,7 +59,7 @@ pub(crate) fn scan_raw_line(bytes: &[u8]) -> usize {
 }
 
 // return the matched bytes size, and the remaining spaces
-pub(crate) fn scan_spaces(bytes: &[u8], spaces: usize) -> Option<(usize, usize)> {
+pub(crate) fn scan_matched_spaces(bytes: &[u8], spaces: usize) -> Option<(usize, usize)> {
   let mut _spaces = 0;
   let mut index = 0;
   while index < bytes.len() {
@@ -74,9 +74,54 @@ pub(crate) fn scan_spaces(bytes: &[u8], spaces: usize) -> Option<(usize, usize)>
       }
       _ => break,
     }
-    if _spaces > spaces {
+    if _spaces >= spaces {
       return Some((index, _spaces - spaces));
     }
   }
   return None;
+}
+
+pub(crate) fn scan_spaces_by_range(bytes: &[u8], min: usize, max: usize) -> Option<(usize, usize)> {
+  let mut spaces = 0;
+  let mut index = 0;
+  while index < bytes.len() {
+    match bytes[index] {
+      b' ' => {
+        index += 1;
+        spaces += 1;
+      }
+      b'\t' => {
+        index += 1;
+        spaces += 4;
+      }
+      _ => break,
+    }
+    if spaces >= max {
+      break;
+    }
+  }
+  if spaces >= min && spaces <= max {
+    Some((index, spaces - max))
+  } else {
+    None
+  }
+}
+
+pub(crate) fn scan_spaces(bytes: &[u8]) -> (usize, usize) {
+  let mut spaces = 0;
+  let mut index = 0;
+  while index < bytes.len() {
+    match bytes[index] {
+      b' ' => {
+        index += 1;
+        spaces += 1;
+      }
+      b'\t' => {
+        index += 1;
+        spaces += 4;
+      }
+      _ => break,
+    }
+  }
+  (index, spaces)
 }

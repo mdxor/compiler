@@ -54,5 +54,8 @@ pub enum TokenBody<'source> {
   Text(&'source str),
   ATXHeading(HeadingLevel),
   SetextHeading(HeadingLevel),
+  IndentedCode,
   ThematicBreak,
+  Code(&'source str),
+  BlankLine,
 }

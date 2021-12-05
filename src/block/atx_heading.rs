@@ -8,14 +8,13 @@ pub(crate) fn scan_atx_heading<'source>(
   tree: &mut Tree<Token<'source>>,
 ) -> bool {
   let offset = document.offset;
-  let remaining = document.remaining;
+  let start = document.block_start;
   let bytes = document.bytes();
   let source = document.source();
 
   let level = scan_ch_repeat(bytes, b'#');
   if bytes.get(level).copied().map_or(true, is_ascii_whitespace) {
     if let Some(heading_level) = HeadingLevel::new(level) {
-      let start = offset - remaining;
       let mut end = offset + level;
       let mut raw_line_start = end;
       let mut raw_line = "";

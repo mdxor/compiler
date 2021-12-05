@@ -5,14 +5,13 @@ use crate::tree::*;
 
 fn scan_block<'source>(document: &mut Document<'source>, tree: &mut Tree<Token<'source>>) {
   let bytes = &document.bytes[document.offset..];
-  if let Some((size, remaining)) = scan_spaces(bytes, 4) {
+  if let Some((size, remaining_spaces)) = scan_matched_spaces(bytes, 4) {
     document.offset += size;
-    document.remaining = remaining;
+    document.remaining_spaces = remaining_spaces;
     scan_indented_code(document, tree);
   } else {
-    let spaces = scan_while(bytes, |v| v == b' ');
-    document.offset += spaces;
-    document.remaining = spaces;
+    let spaces_size = scan_while(bytes, |v| v == b' ');
+    document.offset += spaces_size;
     if !scan_atx_heading(document, tree) && !scan_setext_heading(document, tree) {
       scan_paragraph(document, tree);
     }
@@ -26,6 +25,8 @@ pub fn parse_document_to_blocks<'source>(source: &'source str) -> Tree<Token<'so
     scan_block(&mut document, &mut tree);
     let cur = tree.cur().unwrap();
     document.offset = tree[cur].item.end;
+    document.block_start = document.offset;
+    document.remaining_spaces = 0;
   }
   tree
 }

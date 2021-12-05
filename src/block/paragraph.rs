@@ -7,7 +7,7 @@ pub(crate) fn scan_paragraph<'source>(
   tree: &mut Tree<Token<'source>>,
 ) {
   let offset = document.offset;
-  let remaining = document.remaining;
+  let start = document.block_start;
   let bytes = document.bytes();
   let source = document.source();
   let cur = tree.cur().unwrap();
@@ -26,7 +26,7 @@ pub(crate) fn scan_paragraph<'source>(
     tree.raise();
   }
   tree.append(Token {
-    start: offset - remaining,
+    start,
     end: offset + raw_line_size,
     body: TokenBody::Paragraph,
   });
