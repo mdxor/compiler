@@ -3,6 +3,7 @@ use serde::Serialize;
 #[cfg_attr(test, derive(Serialize))]
 pub struct Node<T> {
   pub child: Option<usize>,
+  pub last_child: Option<usize>,
   pub next: Option<usize>,
   pub item: T,
 }
@@ -19,6 +20,7 @@ impl<T: Default> Tree<T> {
     let mut nodes = vec![];
     nodes.push(Node {
       child: None,
+      last_child: None,
       next: None,
       item: <T>::default(),
     });
@@ -37,6 +39,7 @@ impl<T: Default> Tree<T> {
     let len = self.nodes.len();
     self.nodes.push(Node {
       child: None,
+      last_child: None,
       next: None,
       item,
     });
@@ -47,7 +50,11 @@ impl<T: Default> Tree<T> {
     let next_index = Some(self.create_node(item));
     if let Some(index) = self.cur {
       self[index].next = next_index;
+      if let Some(&parent) = self.spine.last() {
+        self[parent].last_child = next_index;
+      }
     } else if let Some(&parent) = self.spine.last() {
+      self[parent].child = next_index;
       self[parent].child = next_index;
     }
     self.cur = next_index;

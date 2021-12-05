@@ -14,16 +14,15 @@ pub(crate) fn scan_paragraph<'source>(
   let raw_line_size = scan_raw_line(bytes);
   let raw_line = &source[..raw_line_size];
   if tree[cur].item.body == TokenBody::Paragraph {
-    tree.lower();
     let cur = tree.cur().unwrap();
-    if let TokenBody::Raw(last_raw) = tree[cur].item.body {
-      let raw = &document.source[offset - last_raw.len()..offset + raw_line_size];
-      tree[cur].item.end = offset + raw_line_size;
-      tree[cur].item.body = TokenBody::Raw(raw);
-      tree.raise();
-      return;
+    if let Some(last_child) = tree[cur].last_child {
+      if let TokenBody::Raw(last_raw) = tree[last_child].item.body {
+        let raw = &document.source[offset - last_raw.len()..offset + raw_line_size];
+        tree[last_child].item.end = offset + raw_line_size;
+        tree[last_child].item.body = TokenBody::Raw(raw);
+        return;
+      }
     }
-    tree.raise();
   }
   tree.append(Token {
     start,

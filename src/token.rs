@@ -58,4 +58,5 @@ pub enum TokenBody<'source> {
   ThematicBreak,
   Code(&'source str),
   BlankLine,
+  BlockQuote(usize),
 }
