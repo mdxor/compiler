@@ -4,6 +4,7 @@ use serde::Serialize;
 pub struct Node<T> {
   pub child: Option<usize>,
   pub last_child: Option<usize>,
+  pub prev: Option<usize>,
   pub next: Option<usize>,
   pub item: T,
 }
@@ -21,6 +22,7 @@ impl<T: Default> Tree<T> {
     nodes.push(Node {
       child: None,
       last_child: None,
+      prev: None,
       next: None,
       item: <T>::default(),
     });
@@ -40,6 +42,7 @@ impl<T: Default> Tree<T> {
     self.nodes.push(Node {
       child: None,
       last_child: None,
+      prev: None,
       next: None,
       item,
     });
@@ -47,18 +50,20 @@ impl<T: Default> Tree<T> {
   }
 
   pub fn append(&mut self, item: T) -> usize {
-    let next_index = Some(self.create_node(item));
+    let next_index = self.create_node(item);
+    let next = Some(next_index);
     if let Some(index) = self.cur {
-      self[index].next = next_index;
+      self[index].next = next;
+      self[next_index].prev = self.cur;
       if let Some(&parent) = self.spine.last() {
-        self[parent].last_child = next_index;
+        self[parent].last_child = next;
       }
     } else if let Some(&parent) = self.spine.last() {
-      self[parent].child = next_index;
-      self[parent].child = next_index;
+      self[parent].child = next;
+      self[parent].last_child = next;
     }
-    self.cur = next_index;
-    next_index.unwrap()
+    self.cur = next;
+    next_index
   }
 
   pub fn lower(&mut self) -> Option<usize> {
@@ -72,6 +77,16 @@ impl<T: Default> Tree<T> {
     let index = Some(self.spine.pop()?);
     self.cur = index;
     index
+  }
+
+  pub fn pop(&mut self) -> Option<usize> {
+    let cur = self.cur.unwrap();
+    let prev = self[cur].prev;
+    if let Some(prev_index) = prev {
+      self[prev_index].next = None;
+    }
+    self.nodes.pop();
+    prev
   }
 
   pub fn next_sibling(&mut self) -> Option<usize> {
