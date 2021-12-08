@@ -47,7 +47,7 @@ impl HeadingLevel {
 #[cfg_attr(test, derive(Serialize))]
 pub enum TokenBody<'source> {
   // transition token body
-  Raw(&'source str),
+  Raws(Vec<&'source str>),
   // final token body
   Root,
   Paragraph,

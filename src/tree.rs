@@ -66,6 +66,10 @@ impl<T: Default> Tree<T> {
     next_index
   }
 
+  pub fn peek_up(&self) -> Option<usize> {
+    self.spine.last().copied()
+  }
+
   pub fn lower(&mut self) -> Option<usize> {
     let cur_index = self.cur.unwrap();
     self.spine.push(cur_index);
