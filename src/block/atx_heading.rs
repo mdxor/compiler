@@ -38,7 +38,7 @@ pub(crate) fn scan_atx_heading<'source>(
       tree.append(Token {
         start: raw_line_start,
         end,
-        body: TokenBody::Raws(vec![raw_line]),
+        body: TokenBody::Raw(raw_line),
       });
       tree.raise();
       return true;

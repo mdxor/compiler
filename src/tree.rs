@@ -77,6 +77,13 @@ impl<T: Default> Tree<T> {
     self.cur
   }
 
+  pub fn lower_to_last(&mut self) -> Option<usize> {
+    let cur_index = self.cur.unwrap();
+    self.spine.push(cur_index);
+    self.cur = self[cur_index].last_child;
+    self.cur
+  }
+
   pub fn raise(&mut self) -> Option<usize> {
     let index = Some(self.spine.pop()?);
     self.cur = index;

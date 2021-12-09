@@ -16,9 +16,15 @@ pub(crate) fn scan_paragraph<'source>(
   if tree[cur].item.body == TokenBody::Paragraph {
     let cur = tree.cur().unwrap();
     tree[cur].item.end = offset + raw_size;
-    if let TokenBody::Raws(raws) = &mut tree[cur].item.body {
-      raws.push(raw);
+    tree.lower_to_last();
+    if let Some(_) = tree.cur() {
+      tree.append(Token {
+        start,
+        end: offset + raw_size,
+        body: TokenBody::Raw(raw),
+      });
     }
+    tree.raise();
   }
   tree.append(Token {
     start,
@@ -27,9 +33,9 @@ pub(crate) fn scan_paragraph<'source>(
   });
   tree.lower();
   tree.append(Token {
-    start: offset,
+    start,
     end: offset + raw_size,
-    body: TokenBody::Raws(vec![raw]),
+    body: TokenBody::Raw(raw),
   });
   tree.raise();
 }
