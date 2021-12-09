@@ -9,7 +9,7 @@ pub(crate) fn scan_setext_heading<'source>(
 ) -> bool {
   let offset = document.offset;
   let cur = tree.cur().unwrap();
-  if tree[cur].item.body != TokenBody::Paragraph {
+  if tree[cur].item.value != TokenValue::Paragraph {
     return false;
   }
   let bytes = &document.bytes[offset..];
@@ -24,7 +24,7 @@ pub(crate) fn scan_setext_heading<'source>(
           HeadingLevel::H2
         };
         tree[cur].item.end = i;
-        tree[cur].item.body = TokenBody::SetextHeading(level);
+        tree[cur].item.value = TokenValue::SetextHeading(level);
         return true;
       }
     }

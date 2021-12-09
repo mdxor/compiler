@@ -32,13 +32,13 @@ pub(crate) fn scan_atx_heading<'source>(
       tree.append(Token {
         start,
         end,
-        body: TokenBody::ATXHeading(heading_level),
+        value: TokenValue::ATXHeading(heading_level),
       });
       tree.lower();
       tree.append(Token {
         start: raw_line_start,
         end,
-        body: TokenBody::Raw(raw_line),
+        value: TokenValue::Raw(raw_line),
       });
       tree.raise();
       return true;

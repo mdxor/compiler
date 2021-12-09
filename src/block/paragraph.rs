@@ -13,7 +13,7 @@ pub(crate) fn scan_paragraph<'source>(
   let cur = tree.cur().unwrap();
   let raw_size = scan_raw_line(bytes);
   let raw = &source[..raw_size];
-  if tree[cur].item.body == TokenBody::Paragraph {
+  if tree[cur].item.value == TokenValue::Paragraph {
     let cur = tree.cur().unwrap();
     tree[cur].item.end = offset + raw_size;
     tree.lower_to_last();
@@ -21,7 +21,7 @@ pub(crate) fn scan_paragraph<'source>(
       tree.append(Token {
         start,
         end: offset + raw_size,
-        body: TokenBody::Raw(raw),
+        value: TokenValue::Raw(raw),
       });
     }
     tree.raise();
@@ -29,19 +29,13 @@ pub(crate) fn scan_paragraph<'source>(
   tree.append(Token {
     start,
     end: offset + raw_size,
-    body: TokenBody::Paragraph,
+    value: TokenValue::Paragraph,
   });
   tree.lower();
   tree.append(Token {
     start,
     end: offset + raw_size,
-    body: TokenBody::Raw(raw),
+    value: TokenValue::Raw(raw),
   });
   tree.raise();
-}
-
-pub(crate) fn interrupt_paragraph<'source>(tree: &mut Tree<Token<'source>>) {
-  if let Some(cur) = tree.cur() {
-    if let TokenBody::Paragraph = tree[cur].item.body {}
-  }
 }

@@ -11,7 +11,7 @@ pub(crate) fn scan_block_quote<'source>(
   let bytes = document.bytes();
   if bytes[0] != b'>' {
     if let Some(cur) = tree.cur() {
-      if let TokenBody::BlockQuote(_) = tree[cur].item.body {
+      if let TokenValue::BlockQuote(_) = tree[cur].item.value {
         tree.raise();
       }
     }
@@ -38,7 +38,7 @@ pub(crate) fn scan_block_quote<'source>(
   }) + 1;
   let end = start + size;
   if let Some(cur) = tree.cur() {
-    if let TokenBody::BlockQuote(_level) = tree[cur].item.body {
+    if let TokenValue::BlockQuote(_level) = tree[cur].item.value {
       if level == _level {
         tree[cur].item.end = end;
         tree.lower();
@@ -49,7 +49,7 @@ pub(crate) fn scan_block_quote<'source>(
   tree.append(Token {
     start,
     end,
-    body: TokenBody::BlockQuote(level),
+    value: TokenValue::BlockQuote(level),
   });
   tree.lower();
   true

@@ -5,7 +5,7 @@ use serde::Serialize;
 pub struct Token<'source> {
   pub start: usize,
   pub end: usize,
-  pub body: TokenBody<'source>,
+  pub value: TokenValue<'source>,
 }
 
 impl<'source> Default for Token<'source> {
@@ -13,7 +13,7 @@ impl<'source> Default for Token<'source> {
     Token {
       start: 0,
       end: 0,
-      body: TokenBody::Root,
+      value: TokenValue::Root,
     }
   }
 }
@@ -45,7 +45,7 @@ impl HeadingLevel {
 
 #[derive(Eq, PartialEq, Debug)]
 #[cfg_attr(test, derive(Serialize))]
-pub enum TokenBody<'source> {
+pub enum TokenValue<'source> {
   // transition token body
   Raw(&'source str),
   // final token body

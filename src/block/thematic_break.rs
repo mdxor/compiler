@@ -35,7 +35,7 @@ pub(crate) fn scan_thematic_break<'source>(
       tree.append(Token {
         start: offset,
         end: offset + size,
-        body: TokenBody::ThematicBreak,
+        value: TokenValue::ThematicBreak,
       });
       return true;
     }

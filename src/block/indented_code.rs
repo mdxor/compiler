@@ -19,7 +19,7 @@ pub(crate) fn scan_indented_code<'source>(
   tree.append(Token {
     start,
     end: start,
-    body: TokenBody::IndentedCode,
+    value: TokenValue::IndentedCode,
   });
   tree.lower();
   let mut index = spaces_size;
@@ -32,7 +32,7 @@ pub(crate) fn scan_indented_code<'source>(
       tree.append(Token {
         start: offset,
         end: index + offset,
-        body: TokenBody::Code(raw_line),
+        value: TokenValue::Code(raw_line),
       });
       continue;
     }
@@ -43,7 +43,7 @@ pub(crate) fn scan_indented_code<'source>(
           // meaningful?
           start: offset + index,
           end: offset + index,
-          body: TokenBody::Code(&"   "[..spaces]),
+          value: TokenValue::Code(&"   "[..spaces]),
         });
       }
       let raw_line_size = scan_raw_line(&bytes[index..]);
@@ -51,7 +51,7 @@ pub(crate) fn scan_indented_code<'source>(
       tree.append(Token {
         start: index,
         end: index + raw_line_size,
-        body: TokenBody::Code(raw_line),
+        value: TokenValue::Code(raw_line),
       });
       index += raw_line_size;
     } else {

@@ -2,6 +2,7 @@
 use serde::Serialize;
 #[cfg_attr(test, derive(Serialize))]
 pub struct Node<T> {
+  pub id: usize,
   pub child: Option<usize>,
   pub last_child: Option<usize>,
   pub prev: Option<usize>,
@@ -20,6 +21,7 @@ impl<T: Default> Tree<T> {
   pub fn new() -> Self {
     let mut nodes = vec![];
     nodes.push(Node {
+      id: 0,
       child: None,
       last_child: None,
       prev: None,
@@ -40,6 +42,7 @@ impl<T: Default> Tree<T> {
   pub fn create_node(&mut self, item: T) -> usize {
     let len = self.nodes.len();
     self.nodes.push(Node {
+      id: len,
       child: None,
       last_child: None,
       prev: None,

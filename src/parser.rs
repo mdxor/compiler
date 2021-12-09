@@ -43,7 +43,7 @@ impl<'source> Parser<'source> {
   //     let end = node.item.end;
   //     self.index = end;
   //     match token_body {
-  //       TokenBody::ATXHeading(_) => {
+  //       TokenValue::ATXHeading(_) => {
   //         let raw_size = scan_raw_line(self.bytes());
   //         self.index += raw_size;
 
@@ -58,7 +58,7 @@ impl<'source> Parser<'source> {
   //         self.ast.append(Token {
   //           start: end,
   //           end: end + raw_size,
-  //           body: TokenBody::Raw(raw),
+  //           body: TokenValue::Raw(raw),
   //         });
   //         // TODO
   //         self.ast.raise();
