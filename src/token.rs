@@ -45,10 +45,21 @@ impl HeadingLevel {
 
 #[derive(Eq, PartialEq, Debug)]
 #[cfg_attr(test, derive(Serialize))]
+pub struct FencedCode<'source> {
+  pub language: &'source str,
+  pub meta: &'source str,
+  // ` or ~
+  pub keyword: u8,
+  pub keyword_size: usize,
+}
+
+#[derive(Eq, PartialEq, Debug)]
+#[cfg_attr(test, derive(Serialize))]
 pub enum TokenValue<'source> {
-  // transition token body
+  // transition token value
   Raw(&'source str),
-  // final token body
+  FencedCodeEnding,
+  // final token value
   Root,
   Paragraph,
   Text(&'source str),
@@ -59,4 +70,5 @@ pub enum TokenValue<'source> {
   Code(&'source str),
   BlankLine,
   BlockQuote(usize),
+  FencedCode(FencedCode<'source>),
 }

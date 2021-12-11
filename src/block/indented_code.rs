@@ -18,7 +18,6 @@ pub(crate) fn scan_indented_code<'source>(
       let end = offset + spaces_size + raw_size;
       tree.lower_to_last();
       if spaces > 0 {
-        // meaningful?
         tree.append(Token {
           start,
           end: start,

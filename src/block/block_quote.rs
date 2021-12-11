@@ -1,5 +1,4 @@
 use super::document::*;
-use crate::byte::*;
 use crate::scan::*;
 use crate::token::*;
 use crate::tree::*;

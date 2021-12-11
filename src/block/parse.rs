@@ -1,5 +1,6 @@
 use super::{
-  atx_heading::*, block_quote::*, document::*, indented_code::*, paragraph::*, setext_heading::*,
+  atx_heading::*, block_quote::*, document::*, fenced_code::*, indented_code::*, paragraph::*,
+  setext_heading::*,
 };
 use crate::scan::*;
 use crate::token::*;
@@ -9,7 +10,14 @@ fn scan_container_block<'source>(
   document: &mut Document<'source>,
   tree: &mut Tree<Token<'source>>,
 ) -> bool {
-  scan_block_quote(document, tree)
+  if scan_block_quote(document, tree) {
+    prepare_next_block(document, tree);
+    scan_block(document, tree);
+    tree.raise();
+    true
+  } else {
+    false
+  }
 }
 
 fn prepare_next_block<'source>(document: &mut Document<'source>, tree: &mut Tree<Token<'source>>) {
@@ -20,7 +28,9 @@ fn prepare_next_block<'source>(document: &mut Document<'source>, tree: &mut Tree
 
 fn scan_block<'source>(document: &mut Document<'source>, tree: &mut Tree<Token<'source>>) {
   let bytes = document.bytes();
-  if let Some(size) = scan_blank_line(bytes) {
+  if scan_inner_fenced_code(document, tree) {
+    // do nothing
+  } else if let Some(size) = scan_blank_line(bytes) {
     let start = document.block_start;
     tree.append(Token {
       start,
@@ -44,11 +54,11 @@ fn scan_block<'source>(document: &mut Document<'source>, tree: &mut Tree<Token<'
   } else {
     let spaces_size = scan_while(bytes, |v| v == b' ');
     document.offset += spaces_size;
-    // TODO
-    if scan_container_block(document, tree) {
-      prepare_next_block(document, tree);
-      scan_block(document, tree);
-    } else if !scan_atx_heading(document, tree) && !scan_setext_heading(document, tree) {
+    if !scan_container_block(document, tree)
+      && !scan_atx_heading(document, tree)
+      && !scan_setext_heading(document, tree)
+      && !scan_fenced_code(document, tree)
+    {
       scan_paragraph(document, tree);
     }
   }
