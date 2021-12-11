@@ -1,5 +1,4 @@
 use super::document::*;
-use crate::byte::*;
 use crate::scan::*;
 use crate::token::*;
 use crate::tree::*;
@@ -12,50 +11,43 @@ pub(crate) fn scan_indented_code<'source>(
   let source = document.source();
   let start = document.block_start;
   let remaining_spaces = document.remaining_spaces;
-
-  let (spaces_size, spaces) = scan_spaces(bytes);
-  let starting_spaces = remaining_spaces + spaces;
-  let mut first_line = true;
-  tree.append(Token {
-    start,
-    end: start,
-    value: TokenValue::IndentedCode,
-  });
-  tree.lower();
-  let mut index = spaces_size;
-  while index < bytes.len() {
-    if first_line {
-      first_line = false;
-      let raw_line_size = scan_raw_line(bytes);
-      let raw_line = &source[index..index + raw_line_size];
-      index += raw_line_size;
-      tree.append(Token {
-        start: offset,
-        end: index + offset,
-        value: TokenValue::Code(raw_line),
-      });
-      continue;
-    }
-    if let Some((spaces_size, spaces)) = scan_spaces_by_range(&bytes[index..], 4, starting_spaces) {
-      index += spaces_size;
+  if let Some(cur) = tree.cur() {
+    if let TokenValue::IndentedCode(starting_spaces) = tree[cur].item.value {
+      let (spaces_size, spaces) = scan_spaces_up_to(bytes, starting_spaces - remaining_spaces);
+      let (raw_size, raw) = scan_raw_line(&bytes[spaces_size..], &source[spaces_size..]);
+      let end = offset + spaces_size + raw_size;
+      tree.lower_to_last();
       if spaces > 0 {
+        // meaningful?
         tree.append(Token {
-          // meaningful?
-          start: offset + index,
-          end: offset + index,
+          start,
+          end: start,
           value: TokenValue::Code(&"   "[..spaces]),
         });
       }
-      let raw_line_size = scan_raw_line(&bytes[index..]);
-      let raw_line = &source[offset + index..offset + index + raw_line_size];
       tree.append(Token {
-        start: index,
-        end: index + raw_line_size,
-        value: TokenValue::Code(raw_line),
+        start,
+        end,
+        value: TokenValue::Code(raw),
       });
-      index += raw_line_size;
-    } else {
-      break;
+      tree[cur].item.end = end;
+      return;
     }
   }
+  let (spaces_size, spaces) = scan_spaces(bytes);
+  let starting_spaces = remaining_spaces + spaces;
+  let (raw_size, raw) = scan_raw_line(&bytes[spaces_size..], &source[spaces_size..]);
+  let end = offset + spaces_size + raw_size;
+  tree.append(Token {
+    start,
+    end,
+    value: TokenValue::IndentedCode(starting_spaces),
+  });
+  tree.lower();
+  tree.append(Token {
+    start,
+    end,
+    value: TokenValue::Code(raw),
+  });
+  tree.raise();
 }

@@ -54,8 +54,10 @@ pub(crate) fn scan_blank_line(bytes: &[u8]) -> Option<usize> {
   scan_eol(&bytes[i..]).map(|n| i + n)
 }
 
-pub(crate) fn scan_raw_line(bytes: &[u8]) -> usize {
-  memchr(b'\n', bytes).map_or(bytes.len(), |x| x + 1)
+pub(crate) fn scan_raw_line<'source>(bytes: &[u8], source: &'source str) -> (usize, &'source str) {
+  let size = memchr(b'\n', bytes).map_or(bytes.len(), |x| x + 1);
+  let raw = &source[..size];
+  (size, raw)
 }
 
 // return the matched bytes size, and the remaining spaces
@@ -81,7 +83,7 @@ pub(crate) fn scan_matched_spaces(bytes: &[u8], spaces: usize) -> Option<(usize,
   return None;
 }
 
-pub(crate) fn scan_spaces_by_range(bytes: &[u8], min: usize, max: usize) -> Option<(usize, usize)> {
+pub(crate) fn scan_spaces_up_to(bytes: &[u8], max: usize) -> (usize, usize) {
   let mut spaces = 0;
   let mut index = 0;
   while index < bytes.len() {
@@ -100,10 +102,10 @@ pub(crate) fn scan_spaces_by_range(bytes: &[u8], min: usize, max: usize) -> Opti
       break;
     }
   }
-  if spaces >= min && spaces <= max {
-    Some((index, spaces - max))
+  if spaces <= max {
+    (index, 0)
   } else {
-    None
+    (index, spaces - max)
   }
 }
 

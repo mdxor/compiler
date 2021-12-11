@@ -13,22 +13,21 @@ pub(crate) fn scan_atx_heading<'source>(
   let source = document.source();
 
   let level = scan_ch_repeat(bytes, b'#');
-  if bytes.get(level).copied().map_or(true, is_ascii_whitespace) {
+  let mut starting_size = level;
+  let c = bytes.get(level).copied();
+  if c.map_or(true, is_ascii_whitespace) {
     if let Some(heading_level) = HeadingLevel::new(level) {
-      let mut end = offset + level;
-      let mut raw_line_start = end;
-      let mut raw_line = "";
-      if bytes
-        .get(level)
-        .copied()
-        .map_or(false, is_ascii_whitespace_no_nl)
-      {
-        end += 1;
-        raw_line_start = end;
-        let raw_line_size = scan_raw_line(&document.bytes[raw_line_start..]);
-        raw_line = &source[raw_line_start..raw_line_start + raw_line_size];
-        end += raw_line_size;
+      let mut raw = "";
+      let mut raw_size = 0;
+
+      if c.map_or(false, is_ascii_whitespace_no_nl) {
+        starting_size += 1;
+
+        let result = scan_raw_line(&bytes[starting_size..], &source[starting_size..]);
+        raw_size = result.0;
+        raw = result.1;
       }
+      let end = offset + starting_size + raw_size;
       tree.append(Token {
         start,
         end,
@@ -36,9 +35,9 @@ pub(crate) fn scan_atx_heading<'source>(
       });
       tree.lower();
       tree.append(Token {
-        start: raw_line_start,
+        start: offset + starting_size,
         end,
-        value: TokenValue::Raw(raw_line),
+        value: TokenValue::Raw(raw),
       });
       tree.raise();
       return true;

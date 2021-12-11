@@ -54,7 +54,7 @@ pub enum TokenValue<'source> {
   Text(&'source str),
   ATXHeading(HeadingLevel),
   SetextHeading(HeadingLevel),
-  IndentedCode,
+  IndentedCode(usize),
   ThematicBreak,
   Code(&'source str),
   BlankLine,
