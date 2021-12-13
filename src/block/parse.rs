@@ -21,9 +21,10 @@ fn scan_container_block<'source>(
 }
 
 fn prepare_next_block<'source>(document: &mut Document<'source>, tree: &mut Tree<Token<'source>>) {
-  let cur = tree.cur().unwrap();
-  document.offset = tree[cur].item.end;
-  document.block_start = document.offset;
+  if let Some(cur) = tree.cur() {
+    document.offset = tree[cur].item.end;
+    document.block_start = document.offset;
+  }
 }
 
 fn scan_block<'source>(document: &mut Document<'source>, tree: &mut Tree<Token<'source>>) {

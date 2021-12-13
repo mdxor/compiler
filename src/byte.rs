@@ -30,3 +30,7 @@ pub(crate) fn is_valid_unquoted_attr_value_char(c: u8) -> bool {
     b'\'' | b'"' | b' ' | b'=' | b'>' | b'<' | b'`' | b'\n' | b'\r'
   )
 }
+
+pub(crate) fn is_digit(c: u8) -> bool {
+  b'0' <= c && c <= b'9'
+}
