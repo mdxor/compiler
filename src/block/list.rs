@@ -31,48 +31,42 @@ pub(crate) fn continue_list<'source>(
   false
 }
 
-// return indent, size, remaining spaces, ch, ordered list index
-fn scan_list_item<'source>(
-  bytes: &'source [u8],
-  source: &'source str,
-) -> Option<(usize, usize, usize, u8, Option<&'source str>)> {
+// return ch, ending indent, size, ordered index
+fn scan_list_marker<'source>(bytes: &'source [u8]) -> Option<(u8, usize, usize, u64)> {
   let mut ch: Option<u8> = None;
-  let mut indent = 0;
-  let mut starting_size = 0;
-  let mut start_index: Option<&'source str> = None;
+  let mut size = 0;
+  let mut ordered_index = 0;
   if let Some(c) = bytes.get(0) {
     if [b'-', b'+', b'*'].contains(c) {
       ch = Some(*c);
-      indent = 1;
+      size = 1;
     } else {
-      let digit_size = scan_while(bytes, is_digit);
-      if digit_size < 10 {
-        if let Some(c) = bytes.get(digit_size) {
-          if [b'.', b')'].contains(c) {
-            ch = Some(*c);
-            start_index = Some(&source[..digit_size]);
-            indent = digit_size + 1;
+      scan_while(bytes, |v| {
+        if b'0' <= v && v <= b'9' {
+          ordered_index = ordered_index * 10 + u64::from(v - b'0');
+          size += 1;
+          if size >= 9 {
+            return false;
           }
+          true
+        } else {
+          false
+        }
+      });
+      if let Some(c) = bytes.get(size) {
+        if [b'.', b')'].contains(c) {
+          ch = Some(*c);
+          size += 1;
         }
       }
     }
   }
   if let Some(ch) = ch {
-    starting_size = indent;
-    let (spaces_size, spaces) = scan_spaces(&bytes[starting_size..]);
-    if let Some(_) = scan_eol(&bytes[starting_size + spaces_size..]) {
-      indent += 1;
-      return Some((indent, starting_size, 0, ch, start_index));
+    let (spaces_size, spaces) = scan_spaces(&bytes[size..]);
+    size += spaces_size;
+    if let Some(_) = scan_eol(&bytes[size..]) {
+      return Some((ch, spaces, size, ordered_index));
     }
-    if spaces_size >= 5 {
-      indent += 1;
-      starting_size += 1;
-      let (_, remaining_spaces) = scan_matched_spaces(&bytes[starting_size..], 1).unwrap();
-      return Some((indent, starting_size, remaining_spaces, ch, start_index));
-    }
-    indent += spaces;
-    starting_size += spaces_size;
-    return Some((indent, starting_size, 0, ch, start_index));
   }
   None
 }
