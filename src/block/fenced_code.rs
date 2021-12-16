@@ -3,11 +3,10 @@ use crate::scan::*;
 use crate::token::*;
 use crate::tree::*;
 pub(crate) fn scan_fenced_code<'source>(
-  document: &Document<'source>,
+  document: &mut Document<'source>,
   tree: &mut Tree<Token<'source>>,
 ) -> bool {
-  let start = document.block_start;
-  let offset = document.offset;
+  let start = document.offset();
   let bytes = document.bytes();
   let source = document.source();
   let mut keyword = b'`';
@@ -25,7 +24,6 @@ pub(crate) fn scan_fenced_code<'source>(
   let meta = splitter.next().map_or("", |v| v);
   tree.append(Token {
     start,
-    end: offset + keyword_size + raw_size,
     value: TokenValue::FencedCode(FencedCode {
       language,
       meta,
@@ -33,16 +31,17 @@ pub(crate) fn scan_fenced_code<'source>(
       keyword_size,
     }),
   });
+  document.forward(keyword_size + raw_size);
   true
 }
 
 pub(crate) fn scan_inner_fenced_code<'source>(
-  document: &Document<'source>,
+  document: &mut Document<'source>,
   tree: &mut Tree<Token<'source>>,
 ) -> bool {
   if let Some(cur) = tree.cur() {
     if let TokenValue::FencedCode(fenced_code) = &tree[cur].item.value {
-      let start = document.block_start;
+      let start = document.offset();
       let bytes = document.bytes();
       // try to end fenced code
       let (spaces_size, spaces) = scan_spaces(bytes);
@@ -52,13 +51,11 @@ pub(crate) fn scan_inner_fenced_code<'source>(
         let repeat = scan_ch_repeat(&bytes[spaces_size..], keyword);
         if repeat == keyword_size {
           if let Some(blank_line_size) = scan_blank_line(&bytes[spaces_size + repeat..]) {
-            let end = start + spaces_size + keyword_size + blank_line_size;
-            tree[cur].item.end = end;
             tree.append(Token {
-              start: end,
-              end,
+              start,
               value: TokenValue::FencedCodeEnding,
             });
+            document.forward(spaces_size + keyword_size + blank_line_size);
             return true;
           }
         }
@@ -69,9 +66,9 @@ pub(crate) fn scan_inner_fenced_code<'source>(
       let (raw_size, raw) = scan_raw_line(bytes, source);
       tree.append(Token {
         start,
-        end: start + raw_size,
         value: TokenValue::Code(raw),
       });
+      document.forward(raw_size);
       tree.raise();
       return true;
     }

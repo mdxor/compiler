@@ -4,7 +4,6 @@ use serde::Serialize;
 #[cfg_attr(test, derive(Serialize))]
 pub struct Token<'source> {
   pub start: usize,
-  pub end: usize,
   pub value: TokenValue<'source>,
 }
 
@@ -12,7 +11,6 @@ impl<'source> Default for Token<'source> {
   fn default() -> Self {
     Token {
       start: 0,
-      end: 0,
       value: TokenValue::Root,
     }
   }
@@ -71,6 +69,6 @@ pub enum TokenValue<'source> {
   BlankLine,
   BlockQuote(usize),
   FencedCode(FencedCode<'source>),
-  List(bool, u8, usize), // is_tight, list character, list indent
-  ListItem(usize),       // indent
+  List(u8, bool, usize, u64), // list character, is_tight, indent, ordered index
+  ListItem(usize),            // indent
 }

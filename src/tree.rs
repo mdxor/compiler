@@ -69,8 +69,16 @@ impl<T: Default> Tree<T> {
     next_index
   }
 
-  pub fn peek_up(&self) -> Option<usize> {
+  pub fn peek_parent(&self) -> Option<usize> {
     self.spine.last().copied()
+  }
+
+  pub fn peek_grandparent(&self) -> Option<usize> {
+    if self.spine.len() >= 2 {
+      Some(self.spine[self.spine.len() - 2])
+    } else {
+      None
+    }
   }
 
   pub fn lower(&mut self) -> Option<usize> {

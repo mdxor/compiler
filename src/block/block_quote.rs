@@ -3,10 +3,10 @@ use crate::scan::*;
 use crate::token::*;
 use crate::tree::*;
 pub(crate) fn scan_block_quote<'source>(
-  document: &Document<'source>,
+  document: &mut Document<'source>,
   tree: &mut Tree<Token<'source>>,
 ) -> bool {
-  let start = document.block_start;
+  let start = document.offset();
   let bytes = document.bytes();
   if bytes[0] != b'>' {
     if let Some(cur) = tree.cur() {
@@ -35,11 +35,10 @@ pub(crate) fn scan_block_quote<'source>(
     }
     _ => false,
   }) + 1;
-  let end = start + size;
+  document.forward(size);
   if let Some(cur) = tree.cur() {
     if let TokenValue::BlockQuote(_level) = tree[cur].item.value {
       if level == _level {
-        tree[cur].item.end = end;
         tree.lower();
         return true;
       }
@@ -47,7 +46,6 @@ pub(crate) fn scan_block_quote<'source>(
   }
   tree.append(Token {
     start,
-    end,
     value: TokenValue::BlockQuote(level),
   });
   tree.lower();

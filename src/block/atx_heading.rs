@@ -4,11 +4,10 @@ use crate::scan::*;
 use crate::token::*;
 use crate::tree::*;
 pub(crate) fn scan_atx_heading<'source>(
-  document: &Document<'source>,
+  document: &mut Document<'source>,
   tree: &mut Tree<Token<'source>>,
 ) -> bool {
-  let offset = document.offset;
-  let start = document.block_start;
+  let start = document.offset();
   let bytes = document.bytes();
   let source = document.source();
 
@@ -27,18 +26,17 @@ pub(crate) fn scan_atx_heading<'source>(
         raw_size = result.0;
         raw = result.1;
       }
-      let end = offset + starting_size + raw_size;
       tree.append(Token {
         start,
-        end,
         value: TokenValue::ATXHeading(heading_level),
       });
+      document.forward(starting_size);
       tree.lower();
       tree.append(Token {
-        start: offset + starting_size,
-        end,
+        start: document.offset(),
         value: TokenValue::Raw(raw),
       });
+      document.forward(raw_size);
       tree.raise();
       return true;
     }

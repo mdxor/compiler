@@ -4,11 +4,10 @@ use crate::scan::*;
 use crate::token::*;
 use crate::tree::*;
 pub(crate) fn scan_thematic_break<'source>(
-  document: &Document<'source>,
+  document: &mut Document<'source>,
   tree: &mut Tree<Token<'source>>,
 ) -> bool {
   let bytes = document.bytes();
-  let offset = document.offset;
   let chars = vec![b'-', b'_', b'*'];
   let mut count = 0;
   let mut c = b' ';
@@ -33,10 +32,10 @@ pub(crate) fn scan_thematic_break<'source>(
     if let Some(eol_size) = scan_eol(bytes) {
       size += eol_size;
       tree.append(Token {
-        start: offset,
-        end: offset + size,
+        start: document.offset(),
         value: TokenValue::ThematicBreak,
       });
+      document.forward(size);
       return true;
     }
   }

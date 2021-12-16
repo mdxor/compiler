@@ -7,12 +7,11 @@ pub(crate) fn scan_setext_heading<'source>(
   document: &Document<'source>,
   tree: &mut Tree<Token<'source>>,
 ) -> bool {
-  let offset = document.offset;
   let cur = tree.cur().unwrap();
   if tree[cur].item.value != TokenValue::Paragraph {
     return false;
   }
-  let bytes = &document.bytes[offset..];
+  let bytes = &document.bytes();
   if let Some(c) = bytes.get(0) {
     if *c == b'-' || *c == b'=' {
       let mut i = scan_ch_repeat(&bytes[1..], *c);
@@ -23,7 +22,6 @@ pub(crate) fn scan_setext_heading<'source>(
         } else {
           HeadingLevel::H2
         };
-        tree[cur].item.end = i;
         tree[cur].item.value = TokenValue::SetextHeading(level);
         return true;
       }

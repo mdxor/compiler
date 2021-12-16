@@ -1,8 +1,8 @@
 pub struct Document<'source> {
-  pub source: &'source str,
-  pub bytes: &'source [u8],
-  pub offset: usize,
-  pub block_start: usize,
+  source: &'source str,
+  bytes: &'source [u8],
+  offset: usize,
+  _offset: usize,
   pub remaining_spaces: usize,
 }
 
@@ -12,16 +12,31 @@ impl<'source> Document<'source> {
       source,
       bytes: source.as_bytes(),
       offset: 0,
-      block_start: 0,
+      _offset: 0,
       remaining_spaces: 0,
     }
   }
 
   pub fn bytes(&self) -> &'source [u8] {
-    &self.bytes[self.offset..]
+    &self.bytes[self._offset..]
   }
 
   pub fn source(&self) -> &'source str {
-    &self.source[self.offset..]
+    &self.source[self._offset..]
+  }
+
+  pub fn forward(&mut self, size: usize) -> usize {
+    self._offset += size;
+    self.offset = self._offset;
+    self._offset
+  }
+
+  pub fn forward_for_next(&mut self, size: usize) -> usize {
+    self._offset += size;
+    self._offset
+  }
+
+  pub fn offset(&self) -> usize {
+    self.offset
   }
 }
