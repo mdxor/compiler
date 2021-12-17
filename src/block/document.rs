@@ -3,7 +3,6 @@ pub struct Document<'source> {
   bytes: &'source [u8],
   offset: usize,
   _offset: usize,
-  pub remaining_spaces: usize,
 }
 
 impl<'source> Document<'source> {
@@ -13,7 +12,6 @@ impl<'source> Document<'source> {
       bytes: source.as_bytes(),
       offset: 0,
       _offset: 0,
-      remaining_spaces: 0,
     }
   }
 

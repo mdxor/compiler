@@ -44,18 +44,18 @@ pub(crate) fn scan_inner_fenced_code<'source>(
       let start = document.offset();
       let bytes = document.bytes();
       // try to end fenced code
-      let (spaces_size, spaces) = scan_spaces(bytes);
+      let spaces = scan_spaces(bytes);
       if spaces < 4 {
         let keyword = fenced_code.keyword;
         let keyword_size = fenced_code.keyword_size;
-        let repeat = scan_ch_repeat(&bytes[spaces_size..], keyword);
+        let repeat = scan_ch_repeat(&bytes[spaces..], keyword);
         if repeat == keyword_size {
-          if let Some(blank_line_size) = scan_blank_line(&bytes[spaces_size + repeat..]) {
+          if let Some(blank_line_size) = scan_blank_line(&bytes[spaces + repeat..]) {
             tree.append(Token {
               start,
               value: TokenValue::FencedCodeEnding,
             });
-            document.forward(spaces_size + keyword_size + blank_line_size);
+            document.forward(spaces + keyword_size + blank_line_size);
             return true;
           }
         }

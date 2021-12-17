@@ -60,70 +60,44 @@ pub(crate) fn scan_raw_line<'source>(bytes: &[u8], source: &'source str) -> (usi
   (size, raw)
 }
 
-// return the matched bytes size, and the remaining spaces
-pub(crate) fn scan_matched_spaces(bytes: &[u8], spaces: usize) -> Option<(usize, usize)> {
-  let mut _spaces = 0;
+pub(crate) fn scan_matched_spaces(bytes: &[u8], spaces: usize) -> bool {
   let mut index = 0;
   while index < bytes.len() {
-    match bytes[index] {
-      b' ' => {
-        index += 1;
-        _spaces += 1;
-      }
-      b'\t' => {
-        index += 1;
-        _spaces += 4;
-      }
-      _ => break,
+    if bytes[index] == b' ' {
+      index += 1;
+    } else {
+      break;
     }
-    if _spaces >= spaces {
-      return Some((index, _spaces - spaces));
+    if index == spaces {
+      return true;
     }
   }
-  return None;
+  return false;
 }
 
-pub(crate) fn scan_spaces_up_to(bytes: &[u8], max: usize) -> (usize, usize) {
-  let mut spaces = 0;
+pub(crate) fn scan_spaces_up_to(bytes: &[u8], max: usize) -> usize {
   let mut index = 0;
   while index < bytes.len() {
-    match bytes[index] {
-      b' ' => {
-        index += 1;
-        spaces += 1;
-      }
-      b'\t' => {
-        index += 1;
-        spaces += 4;
-      }
-      _ => break,
+    if bytes[index] == b' ' {
+      index += 1;
+    } else {
+      break;
     }
-    if spaces >= max {
+    if index == max {
+      return index;
+    }
+  }
+  index
+}
+
+pub(crate) fn scan_spaces(bytes: &[u8]) -> usize {
+  let mut index = 0;
+  while index < bytes.len() {
+    if bytes[index] == b' ' {
+      index += 1;
+    } else {
       break;
     }
   }
-  if spaces <= max {
-    (index, 0)
-  } else {
-    (index, spaces - max)
-  }
-}
-
-pub(crate) fn scan_spaces(bytes: &[u8]) -> (usize, usize) {
-  let mut spaces = 0;
-  let mut index = 0;
-  while index < bytes.len() {
-    match bytes[index] {
-      b' ' => {
-        index += 1;
-        spaces += 1;
-      }
-      b'\t' => {
-        index += 1;
-        spaces += 4;
-      }
-      _ => break,
-    }
-  }
-  (index, spaces)
+  index
 }

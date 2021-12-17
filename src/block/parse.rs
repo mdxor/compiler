@@ -29,7 +29,7 @@ fn scan_block<'source>(document: &mut Document<'source>, tree: &mut Tree<Token<'
       value: TokenValue::BlankLine,
     });
     document.forward(size);
-  } else if let Some((size, remaining_spaces)) = scan_matched_spaces(document.bytes(), 4) {
+  } else if scan_matched_spaces(document.bytes(), 4) {
     if let Some(cur) = tree.cur() {
       // An indented code block cannot interrupt a paragraph
       // https://github.github.com/gfm/#example-83
@@ -38,8 +38,7 @@ fn scan_block<'source>(document: &mut Document<'source>, tree: &mut Tree<Token<'
         return;
       }
     }
-    document.forward_for_next(size);
-    document.remaining_spaces = remaining_spaces;
+    document.forward_for_next(4);
     scan_indented_code(document, tree);
   } else {
     let spaces_size = scan_while(bytes, |v| v == b' ');

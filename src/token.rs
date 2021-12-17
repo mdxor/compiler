@@ -69,6 +69,6 @@ pub enum TokenValue<'source> {
   BlankLine,
   BlockQuote(usize),
   FencedCode(FencedCode<'source>),
-  List(u8, bool, usize, u64), // list character, is_tight, indent, ordered index
-  ListItem(usize),            // indent
+  List(u8, bool, u64), // list character, is_tight, ordered index
+  ListItem(usize),     // indent
 }
