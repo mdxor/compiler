@@ -1,6 +1,4 @@
 use super::document::*;
-use super::paragraph::*;
-use crate::byte::*;
 use crate::scan::*;
 use crate::token::*;
 use crate::tree::*;
@@ -20,26 +18,60 @@ pub(crate) fn scan_list<'source>(
   if let Some(_) = scan_blank_line(bytes) {
     return false;
   }
-  if let Some(list_marker) = scan_list_marker(document.bytes()) {
-    let ListMarker {
-      starting_indent,
-      ending_indent,
-      ..
-    } = list_marker;
-
-    loop {
-      if let Some(cur) = tree.cur() {
-        if let TokenValue::List(ch, is_tight, start_index) = tree[cur].item.value {
-        } else if let TokenValue::ListItem(indent) = tree[cur].item.value {
-        } else {
-          break;
+  let starting_indent = scan_spaces(bytes);
+  let mut pre_indent = 0;
+  loop {
+    if let Some(cur) = tree.cur() {
+      if let TokenValue::List(..) = tree[cur].item.value {
+        let last_item = tree[cur].last_child.unwrap();
+        if let TokenValue::ListItem(last_item_indent) = tree[last_item].item.value {
+          if starting_indent >= last_item_indent + 2 {
+            pre_indent += last_item_indent;
+            tree.lower_to_last();
+            tree.lower_to_last();
+          } else if starting_indent > pre_indent + 4 {
+            return false;
+          } else {
+            break;
+          }
         }
       } else {
         break;
       }
     }
   }
-  false
+  document.forward(pre_indent);
+  if starting_indent >= 4 {
+    document.forward(pre_indent);
+    return true;
+  }
+  if let Some(list_marker) = scan_list_marker(&bytes[starting_indent..], starting_indent) {
+    if let Some(cur) = tree.cur() {
+      if let TokenValue::List(list_ch, is_tight, _) = tree[cur].item.value {
+        let ListMarker {
+          ch,
+          starting_indent,
+          ending_indent,
+          ..
+        } = list_marker;
+        if ch == list_ch {
+          tree.lower();
+          tree.append(Token {
+            start: document.offset(),
+            value: TokenValue::ListItem(starting_indent + ending_indent),
+          });
+        } else {
+          append_list(list_marker, document, tree);
+        }
+      }
+    }
+  }
+
+  if pre_indent == 0 {
+    false
+  } else {
+    true
+  }
 }
 
 fn append_list<'source>(
@@ -68,8 +100,7 @@ fn append_list<'source>(
 }
 
 // return ch, starting indent, ending indent, size, ordered index
-fn scan_list_marker<'source>(bytes: &'source [u8]) -> Option<ListMarker> {
-  let starting_indent = scan_spaces(bytes);
+fn scan_list_marker<'source>(bytes: &'source [u8], starting_indent: usize) -> Option<ListMarker> {
   let mut ch: Option<u8> = None;
   let mut size = starting_indent;
   let mut ordered_index = 0;

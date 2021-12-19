@@ -115,6 +115,11 @@ impl<T: Default> Tree<T> {
     self.cur = self[self.cur.unwrap()].next;
     self.cur
   }
+
+  pub fn to_root_last_child(&mut self) {
+    self.spine = vec![0];
+    self.cur = self[0].last_child;
+  }
 }
 
 impl<T> std::ops::Index<usize> for Tree<T> {
