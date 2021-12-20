@@ -53,10 +53,30 @@ pub struct FencedCode<'source> {
 
 #[derive(Eq, PartialEq, Debug)]
 #[cfg_attr(test, derive(Serialize))]
+pub struct LinkDefinition<'source> {
+  pub label: &'source str,
+  pub url: &'source str,
+  pub title: Option<usize>,
+  pub title_ch: Option<u8>,
+  pub title_break: bool,
+  pub closing: bool,
+}
+
+#[derive(Eq, PartialEq, Debug)]
+#[cfg_attr(test, derive(Serialize))]
+pub struct LinkDef<'source> {
+  pub label: &'source str,
+  pub url: &'source str,
+  pub title: String,
+}
+
+#[derive(Eq, PartialEq, Debug)]
+#[cfg_attr(test, derive(Serialize))]
 pub enum TokenValue<'source> {
   // transition token value
   Raw(&'source str),
   FencedCodeEnding,
+  LinkDefinition(LinkDefinition<'source>),
   // final token value
   Root,
   Paragraph,

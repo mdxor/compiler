@@ -1,8 +1,10 @@
+use crate::token::*;
 pub struct Document<'source> {
   source: &'source str,
   bytes: &'source [u8],
   offset: usize,
   _offset: usize,
+  link_definitions: Vec<LinkDef<'source>>,
 }
 
 impl<'source> Document<'source> {
@@ -12,6 +14,7 @@ impl<'source> Document<'source> {
       bytes: source.as_bytes(),
       offset: 0,
       _offset: 0,
+      link_definitions: vec![],
     }
   }
 

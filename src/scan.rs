@@ -101,3 +101,34 @@ pub(crate) fn scan_spaces(bytes: &[u8]) -> usize {
   }
   index
 }
+
+pub(crate) fn scan_ends_with(bytes: &[u8], ch: u8, with_escaped: bool) -> Option<usize> {
+  let mut escaped = false;
+  let mut size = 0;
+  let mut flag = false;
+  scan_while(bytes, |c| {
+    if c == b'\n' || c == b'\r' {
+      return flag;
+    }
+    size += 1;
+    if c == ch {
+      size += 1;
+      if !escaped {
+        flag = true;
+      } else {
+        escaped = false;
+      }
+      return flag;
+    }
+    if with_escaped && !escaped && c == b'\\' {
+      escaped = true;
+    }
+    escaped = false;
+    return flag;
+  });
+  if flag {
+    Some(size)
+  } else {
+    None
+  }
+}

@@ -3,6 +3,7 @@ mod block_quote;
 mod document;
 mod fenced_code;
 mod indented_code;
+mod link_definition;
 mod list;
 mod paragraph;
 mod parse;
