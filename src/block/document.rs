@@ -4,7 +4,7 @@ pub struct Document<'source> {
   bytes: &'source [u8],
   offset: usize,
   _offset: usize,
-  link_definitions: Vec<LinkDef<'source>>,
+  link_definitions: Vec<LinkDefinition<'source>>,
 }
 
 impl<'source> Document<'source> {

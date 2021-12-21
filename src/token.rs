@@ -56,17 +56,6 @@ pub struct FencedCode<'source> {
 pub struct LinkDefinition<'source> {
   pub label: &'source str,
   pub url: &'source str,
-  pub title: Option<usize>,
-  pub title_ch: Option<u8>,
-  pub title_break: bool,
-  pub closing: bool,
-}
-
-#[derive(Eq, PartialEq, Debug)]
-#[cfg_attr(test, derive(Serialize))]
-pub struct LinkDef<'source> {
-  pub label: &'source str,
-  pub url: &'source str,
   pub title: String,
 }
 

@@ -101,16 +101,6 @@ impl<T: Default> Tree<T> {
     index
   }
 
-  // pub fn pop(&mut self) -> Option<usize> {
-  //   let cur = self.cur.unwrap();
-  //   let prev = self[cur].prev;
-  //   if let Some(prev_index) = prev {
-  //     self[prev_index].next = None;
-  //   }
-  //   self.nodes.pop();
-  //   prev
-  // }
-
   pub fn next_sibling(&mut self) -> Option<usize> {
     self.cur = self[self.cur.unwrap()].next;
     self.cur
@@ -123,6 +113,10 @@ impl<T: Default> Tree<T> {
 
   pub fn len(&self) -> usize {
     self.nodes.len()
+  }
+
+  pub fn spine(&self) -> &Vec<usize> {
+    &self.spine
   }
 }
 

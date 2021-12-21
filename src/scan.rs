@@ -2,11 +2,11 @@ use crate::byte::*;
 use memchr::memchr;
 
 // scan a single character
-pub(crate) fn scan_ch(data: &[u8], c: u8) -> usize {
+pub(crate) fn scan_ch(data: &[u8], c: u8) -> bool {
   if !data.is_empty() && data[0] == c {
-    1
+    true
   } else {
-    0
+    false
   }
 }
 
@@ -58,6 +58,10 @@ pub(crate) fn scan_raw_line<'source>(bytes: &[u8], source: &'source str) -> (usi
   let size = memchr(b'\n', bytes).map_or(bytes.len(), |x| x + 1);
   let raw = &source[..size];
   (size, raw)
+}
+
+pub(crate) fn scan_raw_line_without_source<'source>(bytes: &[u8]) -> usize {
+  memchr(b'\n', bytes).map_or(bytes.len(), |x| x + 1)
 }
 
 pub(crate) fn scan_matched_spaces(bytes: &[u8], spaces: usize) -> bool {
