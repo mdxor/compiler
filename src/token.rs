@@ -65,7 +65,7 @@ pub enum TokenValue<'source> {
   // transition token value
   Raw(&'source str),
   FencedCodeEnding,
-  LinkDefinition(LinkDefinition<'source>),
+  LinkDefinition,
   // final token value
   Root,
   Paragraph,

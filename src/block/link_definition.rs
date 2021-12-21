@@ -4,7 +4,6 @@ use crate::byte::*;
 use crate::scan::*;
 use crate::token::*;
 use crate::tree::*;
-// TODO: update document
 pub(crate) fn scan_link_definition<'source>(
   document: &mut Document<'source>,
   tree: &mut Tree<Token<'source>>,
@@ -63,13 +62,14 @@ pub(crate) fn scan_link_definition<'source>(
   }
   tree.append(Token {
     start,
-    value: TokenValue::LinkDefinition(LinkDefinition {
-      label: link_label,
-      url: link_url,
-      title,
-    }),
+    value: TokenValue::LinkDefinition,
   });
   document.forward(size);
+  document.link_definitions.push(LinkDefinition {
+    label: link_label,
+    url: link_url,
+    title,
+  });
   Some(())
 }
 
