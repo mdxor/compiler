@@ -61,11 +61,18 @@ pub struct LinkDefinition<'source> {
 
 #[derive(Eq, PartialEq, Debug)]
 #[cfg_attr(test, derive(Serialize))]
+pub enum Align {
+  Left,
+  Center,
+  Right,
+}
+
+#[derive(Eq, PartialEq, Debug)]
+#[cfg_attr(test, derive(Serialize))]
 pub enum TokenValue<'source> {
   // transition token value
   Raw(&'source str),
   FencedCodeEnding,
-  LinkDefinition,
   // final token value
   Root,
   Paragraph,
@@ -80,4 +87,11 @@ pub enum TokenValue<'source> {
   FencedCode(FencedCode<'source>),
   List(u8, bool, u64), // list character, is_tight, ordered index
   ListItem(usize),     // indent
+  LinkDefinition,
+  Table,
+  TableHead,
+  TableCell(&'source str, bool, bool),
+  TableAlignment,
+  TableAlign(Align),
+  TableRow,
 }

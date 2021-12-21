@@ -8,4 +8,5 @@ mod list;
 mod paragraph;
 mod parse;
 mod setext_heading;
+mod table;
 mod thematic_break;
