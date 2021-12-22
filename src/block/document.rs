@@ -1,7 +1,7 @@
 use crate::token::*;
 pub struct Document<'source> {
-  source: &'source str,
-  bytes: &'source [u8],
+  pub source: &'source str,
+  pub bytes: &'source [u8],
   offset: usize,
   _offset: usize,
   pub link_definitions: Vec<LinkDefinition<'source>>,

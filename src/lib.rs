@@ -1,4 +1,6 @@
 extern crate wasm_bindgen;
+#[macro_use]
+extern crate lazy_static;
 
 use wasm_bindgen::prelude::*;
 
@@ -9,6 +11,7 @@ mod jsx;
 mod jsx_test;
 mod parser;
 mod punctuation;
+mod raw;
 mod scan;
 mod token;
 mod tree;

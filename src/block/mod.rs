@@ -1,6 +1,6 @@
 mod atx_heading;
 mod block_quote;
-mod document;
+pub mod document;
 mod fenced_code;
 mod indented_code;
 mod link_definition;

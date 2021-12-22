@@ -76,7 +76,6 @@ pub enum TokenValue<'source> {
   // final token value
   Root,
   Paragraph,
-  Text(&'source str),
   ATXHeading(HeadingLevel),
   SetextHeading(HeadingLevel),
   IndentedCode(usize),
@@ -94,4 +93,10 @@ pub enum TokenValue<'source> {
   TableAlignment,
   TableAlign(Align),
   TableRow,
+}
+
+#[derive(Eq, PartialEq, Debug)]
+#[cfg_attr(test, derive(Serialize))]
+pub enum InlineToken<'source> {
+  Text(&'source str),
 }
