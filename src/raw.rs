@@ -1,27 +1,20 @@
 use crate::block::document::*;
+use crate::byte::*;
 use crate::token::*;
 use crate::tree::*;
-// lazy_static! {
-//   static ref SPECIAL_BYTES: [bool; 256] = {
-//     let mut bytes = [false; 256];
-//     let special_bytes = [
-//       b'\n', b'\r', b'*', b'_', b'&', b'\\', b'[', b']', b'<', b'!', b'`', b'|', b'~',
-//     ];
-//     for &byte in &special_bytes {
-//       bytes[byte as usize] = true;
-//     }
-//     bytes
-//   };
-// }
-struct Raw<'source> {
-  block_tree: &'source Tree<Token<'source>>,
+pub struct Raw<'source> {
+  block_tree: &'source Tree<Token<TokenValue<'source>>>,
   block_id: usize,
   bytes: &'source [u8],
 }
-
+pub enum LoopInstruction {
+  None,
+  Text(usize),
+  Move(usize),
+}
 impl<'source> Raw<'source> {
   pub fn new(
-    block_tree: &'source Tree<Token<'source>>,
+    block_tree: &'source Tree<Token<TokenValue<'source>>>,
     bytes: &'source [u8],
     block_id: usize,
   ) -> Self {
@@ -31,14 +24,10 @@ impl<'source> Raw<'source> {
       block_id,
     }
   }
-  pub fn iterate_bytes<F1, F2>(
-    &mut self,
-    special_bytes: &'source [bool; 256],
-    mut special_byte_callback: F1,
-    mut token_callback: F2,
-  ) where
-    F1: FnMut(u8, usize),
-    F2: FnMut(InlineToken<'source>, usize),
+  pub fn iterate_bytes<F>(&mut self, special_bytes: &'source [bool; 256], mut callback: F)
+  where
+    // raw, raw offset, start, end
+    F: FnMut(&'source str, usize, usize, usize) -> LoopInstruction,
   {
     if let Some(child) = self.block_tree[self.block_id].child {
       let mut cur = child;
@@ -46,24 +35,45 @@ impl<'source> Raw<'source> {
         let start = self.block_tree[cur].item.start;
         if let TokenValue::Raw(raw) = self.block_tree[cur].item.value {
           let mut text_start = 0;
-          for index in 0..raw.len() {
-            let byte = self.bytes[index];
+          let mut index = 0;
+          let len = raw.len();
+          loop {
+            if index >= len {
+              break;
+            }
+            let byte = self.bytes[start + index];
+            if byte == b'\\' && index < len - 1 {
+              if is_ascii_punctuation(self.bytes[start + index + 1]) {
+                if index > text_start {
+                  callback(raw, start, text_start, index - 1);
+                }
+                callback(raw, start, index, index + 1);
+                text_start = index + 2;
+                index += 2;
+                continue;
+              }
+            }
             if special_bytes[byte as usize] {
               if index > text_start {
-                token_callback(
-                  InlineToken::Text(&raw[text_start..index]),
-                  start + text_start,
-                );
+                callback(raw, start, text_start, index - 1);
               }
-              special_byte_callback(byte, start + index);
-              text_start = index + 1;
+              match callback(raw, start, index, index) {
+                LoopInstruction::None => text_start = index + 1,
+                LoopInstruction::Text(size) => {
+                  text_start = index;
+                  index += size;
+                }
+                LoopInstruction::Move(size) => {
+                  index += size;
+                  text_start = index;
+                  continue;
+                }
+              }
             }
+            index += 1;
           }
           if text_start < raw.len() - 1 {
-            token_callback(
-              InlineToken::Text(&raw[text_start..raw.len()]),
-              start + text_start,
-            );
+            callback(raw, start, text_start, raw.len() - 1);
           }
         }
         if let Some(next) = self.block_tree[cur].next {

@@ -6,7 +6,7 @@ struct Parser<'source> {
   source: &'source str,
   bytes: &'source [u8],
   index: usize,
-  ast: Tree<Token<'source>>,
+  ast: Tree<Token<TokenValue<'source>>>,
 }
 
 impl<'source> Parser<'source> {

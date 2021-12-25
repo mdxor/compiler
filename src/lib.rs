@@ -6,6 +6,7 @@ use wasm_bindgen::prelude::*;
 
 mod block;
 mod byte;
+mod inline;
 mod jsx;
 #[cfg(test)]
 mod jsx_test;

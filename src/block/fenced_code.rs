@@ -4,7 +4,7 @@ use crate::token::*;
 use crate::tree::*;
 pub(crate) fn scan_fenced_code<'source>(
   document: &mut Document<'source>,
-  tree: &mut Tree<Token<'source>>,
+  tree: &mut Tree<Token<TokenValue<'source>>>,
 ) -> bool {
   let start = document.offset();
   let bytes = document.bytes();
@@ -37,7 +37,7 @@ pub(crate) fn scan_fenced_code<'source>(
 
 pub(crate) fn scan_inner_fenced_code<'source>(
   document: &mut Document<'source>,
-  tree: &mut Tree<Token<'source>>,
+  tree: &mut Tree<Token<TokenValue<'source>>>,
 ) -> bool {
   if let Some(cur) = tree.cur() {
     if let TokenValue::FencedCode(fenced_code) = &tree[cur].item.value {

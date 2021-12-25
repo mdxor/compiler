@@ -2,13 +2,14 @@ use super::{
   atx_heading::*, block_quote::*, document::*, fenced_code::*, indented_code::*, list::*,
   paragraph::*, setext_heading::*,
 };
+use crate::inline::parse::*;
 use crate::scan::*;
 use crate::token::*;
 use crate::tree::*;
 
 fn scan_container_block<'source>(
   document: &mut Document<'source>,
-  tree: &mut Tree<Token<'source>>,
+  tree: &mut Tree<Token<TokenValue<'source>>>,
 ) -> bool {
   if scan_block_quote(document, tree) | scan_list(document, tree) {
     scan_block(document, tree);
@@ -19,7 +20,10 @@ fn scan_container_block<'source>(
   }
 }
 
-fn scan_block<'source>(document: &mut Document<'source>, tree: &mut Tree<Token<'source>>) {
+fn scan_block<'source>(
+  document: &mut Document<'source>,
+  tree: &mut Tree<Token<TokenValue<'source>>>,
+) {
   let bytes = document.bytes();
   if scan_container_block(document, tree) | scan_inner_fenced_code(document, tree) {
     // do nothing
@@ -52,11 +56,12 @@ fn scan_block<'source>(document: &mut Document<'source>, tree: &mut Tree<Token<'
   }
 }
 
-pub fn parse_source_to_blocks<'source>(source: &'source str) -> Tree<Token<'source>> {
+pub fn parse_source_to_blocks<'source>(source: &'source str) -> Tree<Token<TokenValue<'source>>> {
   let mut document = Document::new(source);
   let mut tree = Tree::new();
   while document.bytes().len() > 0 {
     scan_block(&mut document, &mut tree);
   }
+  parse_block_to_inlines(&mut tree, &mut document, 1);
   tree
 }

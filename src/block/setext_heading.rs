@@ -5,7 +5,7 @@ use crate::token::*;
 use crate::tree::*;
 pub(crate) fn scan_setext_heading<'source>(
   document: &Document<'source>,
-  tree: &mut Tree<Token<'source>>,
+  tree: &mut Tree<Token<TokenValue<'source>>>,
 ) -> bool {
   let cur = tree.cur().unwrap();
   if tree[cur].item.value != TokenValue::Paragraph {

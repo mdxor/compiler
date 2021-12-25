@@ -12,7 +12,7 @@ struct ListMarker {
 // TODO: is_tight
 pub(crate) fn scan_list<'source>(
   document: &mut Document<'source>,
-  tree: &mut Tree<Token<'source>>,
+  tree: &mut Tree<Token<TokenValue<'source>>>,
 ) -> bool {
   let bytes = document.bytes();
   if let Some(_) = scan_blank_line(bytes) {
@@ -77,7 +77,7 @@ pub(crate) fn scan_list<'source>(
 fn append_list<'source>(
   list_marker: ListMarker,
   document: &mut Document<'source>,
-  tree: &mut Tree<Token<'source>>,
+  tree: &mut Tree<Token<TokenValue<'source>>>,
 ) {
   let start = document.offset();
   let ListMarker {

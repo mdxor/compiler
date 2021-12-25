@@ -4,7 +4,7 @@ use crate::token::*;
 use crate::tree::*;
 pub(crate) fn scan_paragraph<'source>(
   document: &mut Document<'source>,
-  tree: &mut Tree<Token<'source>>,
+  tree: &mut Tree<Token<TokenValue<'source>>>,
 ) {
   let start = document.offset();
   let bytes = document.bytes();
@@ -105,7 +105,7 @@ fn match_quote<'source>(bytes: &'source [u8], target: usize, spaces: usize) -> O
 // for ref def, table
 pub(crate) fn continue_paragraph<'source>(
   bytes: &'source [u8],
-  tree: &mut Tree<Token<'source>>,
+  tree: &mut Tree<Token<TokenValue<'source>>>,
 ) -> Option<usize> {
   let mut size = 0;
   let spine = tree.spine();

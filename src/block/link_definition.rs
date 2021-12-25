@@ -6,7 +6,7 @@ use crate::token::*;
 use crate::tree::*;
 pub(crate) fn scan_link_definition<'source>(
   document: &mut Document<'source>,
-  tree: &mut Tree<Token<'source>>,
+  tree: &mut Tree<Token<TokenValue<'source>>>,
 ) -> Option<()> {
   let bytes = document.bytes();
   let source = document.source();

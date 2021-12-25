@@ -5,7 +5,7 @@ use crate::token::*;
 use crate::tree::*;
 pub(crate) fn scan_atx_heading<'source>(
   document: &mut Document<'source>,
-  tree: &mut Tree<Token<'source>>,
+  tree: &mut Tree<Token<TokenValue<'source>>>,
 ) -> bool {
   let start = document.offset();
   let bytes = document.bytes();

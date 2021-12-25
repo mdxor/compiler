@@ -2,16 +2,16 @@
 use serde::Serialize;
 #[derive(Eq, PartialEq, Debug)]
 #[cfg_attr(test, derive(Serialize))]
-pub struct Token<'source> {
+pub struct Token<T> {
   pub start: usize,
-  pub value: TokenValue<'source>,
+  pub value: T,
 }
 
-impl<'source> Default for Token<'source> {
+impl<T: Default> Default for Token<T> {
   fn default() -> Self {
     Token {
       start: 0,
-      value: TokenValue::Root,
+      value: <T>::default(),
     }
   }
 }
@@ -95,8 +95,17 @@ pub enum TokenValue<'source> {
   TableRow,
 }
 
+impl<'source> Default for TokenValue<'source> {
+  fn default() -> Self {
+    TokenValue::Root
+  }
+}
+
 #[derive(Eq, PartialEq, Debug)]
 #[cfg_attr(test, derive(Serialize))]
 pub enum InlineToken<'source> {
   Text(&'source str),
+  MaybeLinkStart,
+  // keyword, repeat, can open, can close
+  MaybeEmphasis(u8, usize, bool, bool),
 }

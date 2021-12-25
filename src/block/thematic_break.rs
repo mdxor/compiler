@@ -5,7 +5,7 @@ use crate::token::*;
 use crate::tree::*;
 pub(crate) fn scan_thematic_break<'source>(
   document: &mut Document<'source>,
-  tree: &mut Tree<Token<'source>>,
+  tree: &mut Tree<Token<TokenValue<'source>>>,
 ) -> bool {
   let bytes = document.bytes();
   let chars = vec![b'-', b'_', b'*'];
