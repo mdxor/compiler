@@ -3,7 +3,7 @@ pub struct Document<'source> {
   pub source: &'source str,
   pub bytes: &'source [u8],
   offset: usize,
-  _offset: usize,
+  start: usize,
   pub link_definitions: Vec<LinkDefinition<'source>>,
 }
 
@@ -13,31 +13,39 @@ impl<'source> Document<'source> {
       source,
       bytes: source.as_bytes(),
       offset: 0,
-      _offset: 0,
+      start: 0,
       link_definitions: vec![],
     }
   }
 
   pub fn bytes(&self) -> &'source [u8] {
-    &self.bytes[self._offset..]
+    &self.bytes[self.offset..]
   }
 
   pub fn source(&self) -> &'source str {
-    &self.source[self._offset..]
+    &self.source[self.offset..]
   }
 
   pub fn forward(&mut self, size: usize) -> usize {
-    self._offset += size;
-    self.offset = self._offset;
-    self._offset
+    self.offset += size;
+    self.start = self.offset;
+    self.offset
   }
 
-  pub fn forward_for_next(&mut self, size: usize) -> usize {
-    self._offset += size;
-    self._offset
+  pub fn forward_offset(&mut self, size: usize) -> usize {
+    self.offset += size;
+    self.offset
+  }
+
+  pub fn forward_to(&mut self, size: usize) {
+    self.offset = size;
+    self.start = size;
   }
 
   pub fn offset(&self) -> usize {
     self.offset
+  }
+  pub fn start(&self) -> usize {
+    self.start
   }
 }

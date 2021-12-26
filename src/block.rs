@@ -1,110 +1,251 @@
-extern crate pest;
-
+use crate::document::*;
+use crate::interrupt::*;
+use crate::lexer::*;
 use crate::scan::*;
-use pest::Parser;
+use crate::token::*;
+use crate::tree::*;
 
-#[derive(Parser)]
-#[grammar = "mdx.pest"]
-struct Lexer;
-
-fn search(rule: Rule, str: &str) -> Option<usize> {
-  if let Ok(pairs) = Lexer::parse(rule, str) {
-    Some(pairs.last().unwrap().as_span().end())
-  } else {
-    None
+fn parse_source_to_blocks<'source>(source: &'source str) -> Tree<Item<Token<'source>>> {
+  let mut document = Document::new(source);
+  let mut tree: Tree<Item<Token<'source>>> = Tree::new();
+  while document.start() < document.bytes.len() {
+    let bytes = document.bytes();
+    let source = document.source();
+    let (size, level) = continue_container(bytes, source, &mut tree);
+    while level < tree.spine().len() {
+      let cur = tree.cur().unwrap();
+      let parent = tree.peek_parent().unwrap();
+      tree[parent].item.end = tree[cur].item.end;
+      tree.raise();
+    }
+    document.forward(size);
+    scan_block(&mut tree, &mut document);
   }
+  tree
 }
 
-pub(crate) fn scan_atx_heading_start(str: &str) -> Option<usize> {
-  let mut pairs = Lexer::parse(Rule::atx_heading_start, str).ok()?;
-  let pair = pairs.next().unwrap();
-  let mut size = pair.as_span().end();
-  if let Some(line_end) = pair.into_inner().next() {
-    let end_span = line_end.as_span();
-    let end_size = end_span.end() - end_span.start();
-    size -= end_size;
-  }
-  Some((size))
-}
-
-// size, repeat size, meta
-pub(crate) fn scan_open_fenced_code(str: &str) -> Option<(usize, usize, &str)> {
-  let mut pairs = Lexer::parse(Rule::open_fenced_code, str).ok()?;
-  let pair = pairs.next().unwrap();
-  let size = pair.as_span().end();
-  let mut inner = pair.into_inner();
-  let repeat = inner.next().unwrap().as_span().end();
-  let meta_span = inner.next().unwrap().as_span();
-  let meta = &str[meta_span.start()..meta_span.end()];
-  Some((size, repeat, meta))
-}
-
-// size, repeat size
-pub(crate) fn scan_close_fenced_code(str: &str) -> Option<(usize, usize)> {
-  let mut pairs = Lexer::parse(Rule::close_fenced_code, str).ok()?;
-  let pair = pairs.next().unwrap();
-  let size = pair.as_span().end();
-  let repeat = pair.into_inner().next().unwrap().as_span().end();
-  Some((size, repeat))
-}
-
-// size, level
-pub(crate) fn scan_block_quote(bytes: &[u8]) -> Option<(usize, usize)> {
-  if bytes.len() > 0 && bytes[0] == b'>' {
-    let mut spaces = 0;
-    let mut level = 1;
-    let size = scan_while(&bytes[1..], |x| match x {
-      b'>' => {
-        level += 1;
-        spaces = 0;
-        true
+fn scan_block<'source>(tree: &mut Tree<Item<Token<'source>>>, document: &mut Document<'source>) {
+  let bytes = document.bytes();
+  let source = document.source();
+  let spaces = scan_spaces(bytes);
+  document.forward_offset(spaces);
+  if scan_container_block(tree, document) {
+    tree.lower();
+    scan_block(tree, document);
+  } else if !scan_leaf_block(tree, document) {
+    let (mut line_size, mut raw_size) = scan_line(&bytes);
+    let start = document.start();
+    let offset = document.offset();
+    tree.append(Item {
+      start,
+      end: start,
+      value: Token::Paragraph,
+    });
+    let mut size = 0;
+    tree.lower();
+    loop {
+      if let Some(container_size) = continue_paragraph(
+        &bytes[size + line_size..],
+        &source[size + line_size..],
+        tree,
+      ) {
+        let (next_line_size, next_raw_size) =
+          scan_line(&bytes[size + line_size + container_size..]);
+        tree.append(Item {
+          start: offset + size,
+          end: offset + size + line_size,
+          value: Token::Raw(&source[size..size + line_size]),
+        });
+        size += line_size + container_size;
+        line_size = next_line_size;
+        raw_size = next_raw_size;
+      } else {
+        break;
       }
-      b' ' => {
-        spaces += 1;
-        if spaces > 3 {
-          false
-        } else {
-          true
+    }
+    tree.append(Item {
+      start: offset + size,
+      end: offset + size + raw_size,
+      value: Token::Raw(&source[size..size + raw_size]),
+    });
+    tree.raise();
+    let cur = tree.cur().unwrap();
+    let end = offset + size + line_size;
+    tree[cur].item.end = end;
+    document.forward_to(end);
+  }
+}
+
+fn scan_leaf_block<'source>(
+  tree: &mut Tree<Item<Token<'source>>>,
+  document: &mut Document<'source>,
+) -> bool {
+  let mut block: Option<Token> = None;
+  let source = document.source();
+  let bytes = document.bytes();
+  let start = document.start();
+  let offset = document.offset();
+  let spaces = offset - start;
+  let mut size = 0;
+
+  if let Some(block_size) = scan_blank_line(source) {
+    size += block_size;
+    block = Some(Token::BlankLine);
+  } else if let Some(block_size) = scan_thematic_break(source) {
+    size += block_size;
+    block = Some(Token::ThematicBreak);
+  }
+  if let Some(token) = block {
+    let end = offset + size;
+    tree.append(Item {
+      start,
+      end: offset + size,
+      value: token,
+    });
+    document.forward_to(end);
+    return true;
+  }
+
+  if let Some((start_size, level)) = scan_atx_heading_start(source) {
+    size += start_size;
+    let (line_size, raw_size) = scan_line(&bytes[size..]);
+    let end = offset + size + line_size;
+    tree.append(Item {
+      start,
+      end: offset + size + line_size,
+      value: Token::ATXHeading(HeadingLevel::new(level).unwrap()),
+    });
+    tree.lower();
+    let raw_start = offset + size;
+    let raw_end = offset + size + raw_size;
+    tree.append(Item {
+      start: raw_start,
+      end: raw_end,
+      value: Token::Raw(&source[size..size + raw_size]),
+    });
+    tree.raise();
+    document.forward_to(end);
+    return true;
+  }
+  if let Some(size) = scan_setext_heading(source) {
+    if let Some(cur) = tree.cur() {
+      if let Token::Paragraph = tree[cur].item.value {
+        let level = if bytes[0] == b'=' { 1 } else { 2 };
+        tree[cur].item.value = Token::SetextHeading(HeadingLevel::new(level).unwrap());
+        let end = offset + size;
+        tree[cur].item.end += end;
+        document.forward_to(end);
+        return true;
+      }
+    }
+    return false;
+  }
+  if let Some((open_size, repeat, meta)) = scan_open_fenced_code(source) {
+    size += open_size;
+    let token = Token::FencedCode;
+    let open_ch = bytes[0];
+
+    tree.append(Item {
+      start,
+      // set later
+      end: start,
+      value: Token::FencedCode,
+    });
+    loop {
+      if size >= bytes.len() {
+        break;
+      }
+      if let Some(container_size) = interrupt_container(&bytes[size..], &source[size..], tree) {
+        size += container_size;
+        if let Some((close_size, close_repeat)) = scan_close_fenced_code(&source[size..]) {
+          if bytes[size] == open_ch && repeat == close_repeat {
+            size += close_size;
+            break;
+          }
+        }
+        let (line_size, _) = scan_line(&bytes[size..]);
+        tree.lower();
+        let code_start = offset + size;
+        size += line_size;
+        let code_end = offset + size;
+        tree.append(Item {
+          start: code_start,
+          end: code_end,
+          value: Token::Code(&source[size - line_size..size]),
+        });
+        tree.raise();
+      } else {
+        break;
+      }
+    }
+    let end = offset + size;
+    let cur = tree.cur().unwrap();
+    tree[cur].item.end = end;
+    document.forward_to(end);
+  }
+  false
+}
+
+fn scan_container_block<'source>(
+  tree: &mut Tree<Item<Token<'source>>>,
+  document: &mut Document<'source>,
+) -> bool {
+  let start = document.start();
+  let offset = document.offset();
+  let bytes = document.bytes();
+  let source = document.source();
+  let spaces = offset - start;
+  if spaces > 3 {
+    return false;
+  }
+
+  if let Some((size, level)) = scan_block_quote(bytes) {
+    tree.append(Item {
+      start,
+      end: size + offset,
+      value: Token::BlockQuote(level),
+    });
+    return true;
+  }
+
+  if let Some((size, marker_size)) = scan_list_item_start(source) {
+    let order_index = if marker_size > 1 {
+      &source[..marker_size - 1]
+    } else {
+      ""
+    };
+    // TODO
+    let ending_indent = scan_spaces(&bytes[size..]);
+    let ch = bytes[marker_size - 1];
+    if let Some(cur) = tree.cur() {
+      if let Token::List(list_ch, _, __) = tree[cur].item.value {
+        if list_ch == ch {
+          tree.lower();
+          tree.append(Item {
+            start,
+            end: start + size + ending_indent,
+            value: Token::ListItem(spaces + size + ending_indent),
+          });
+          return true;
         }
       }
-      _ => false,
-    }) + 1;
-    Some((size, level))
-  } else {
-    None
+    }
+    // TODO: is_tight
+    tree.append(Item {
+      start,
+      end: start + size + ending_indent,
+      value: Token::List(ch, false, order_index),
+    });
+    return true;
   }
-}
-
-// size, marker size
-pub(crate) fn scan_list_item_start(str: &str) -> Option<(usize, usize)> {
-  let mut pairs = Lexer::parse(Rule::list_item_start, str).ok()?;
-  let pair = pairs.next().unwrap();
-  let mut size = pair.as_span().end();
-  let mut inner = pair.into_inner();
-  let marker_size = inner.next().unwrap().as_span().end();
-  if let Some(line_end) = inner.next() {
-    let end_span = line_end.as_span();
-    let end_size = end_span.end() - end_span.start();
-    size -= end_size;
-  }
-  Some((size, marker_size))
-}
-
-pub(crate) fn scan_setext_heading(str: &str) -> Option<usize> {
-  search(Rule::setext_heading, str)
-}
-
-pub(crate) fn scan_thematic_break(str: &str) -> Option<usize> {
-  search(Rule::thematic_break, str)
+  false
 }
 
 #[test]
-fn test_scan_atx_heading_start() {
-  println!("{:?}", scan_atx_heading_start("#\n"));
-  println!("{:?}", scan_atx_heading_start("# \n"));
-  println!("{:?}", scan_atx_heading_start("# "));
-  println!("{:?}", scan_open_fenced_code("```"));
-  println!("{:?}", scan_close_fenced_code("````   \n"));
-  println!("{:?}", scan_close_fenced_code("````   "));
-  println!("{:?}", scan_close_fenced_code("``   "));
+fn test_parse_block() {
+  let source = r#"
+# ti`tle`
+this is a ~~paragraph~~
+"#;
+  insta::assert_yaml_snapshot!(parse_source_to_blocks(source));
 }

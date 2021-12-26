@@ -34,6 +34,7 @@ impl<'source> Raw<'source> {
       loop {
         let start = self.block_tree[cur].item.start;
         if let Token::Raw(raw) = self.block_tree[cur].item.value {
+          callback(raw, start, 0, 0);
           let mut text_start = 0;
           let mut index = 0;
           let len = raw.len();
@@ -45,9 +46,9 @@ impl<'source> Raw<'source> {
             if byte == b'\\' && index < len - 1 {
               if is_ascii_punctuation(self.bytes[start + index + 1]) {
                 if index > text_start {
-                  callback(raw, start, text_start, index - 1);
+                  callback(raw, start, text_start, index);
                 }
-                callback(raw, start, index, index + 1);
+                callback(raw, start, index, index + 2);
                 text_start = index + 2;
                 index += 2;
                 continue;
@@ -55,9 +56,9 @@ impl<'source> Raw<'source> {
             }
             if special_bytes[byte as usize] {
               if index > text_start {
-                callback(raw, start, text_start, index - 1);
+                callback(raw, start, text_start, index);
               }
-              match callback(raw, start, index, index) {
+              match callback(raw, start, index, index + 1) {
                 LoopInstruction::None => text_start = index + 1,
                 LoopInstruction::Text(size) => {
                   text_start = index;
@@ -73,7 +74,7 @@ impl<'source> Raw<'source> {
             index += 1;
           }
           if text_start < raw.len() - 1 {
-            callback(raw, start, text_start, raw.len() - 1);
+            callback(raw, start, text_start, raw.len());
           }
         }
         if let Some(next) = self.block_tree[cur].next {

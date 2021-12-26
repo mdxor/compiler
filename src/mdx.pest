@@ -1,6 +1,8 @@
-line_end = { "\r\n" | "\n" | EOI }
+blank_line = { (" " | "\t")* ~ ("\r\n" | "\n" | EOI) }
 
-atx_heading_start = { "#"{1, 6} ~ (" " | "\t" | line_end ) }
+line_end = { "\r\n" | "\n" | EOI }
+atx_heading_marker = { "#"{1, 6} }
+atx_heading_start = { atx_heading_marker ~ (" " | "\t" | line_end ) }
 
 open_fenced_code_meta = { (!("`" | "\r" | "\n" | "\x00") ~ ANY)* }
 open_fenced_code_backtick = _{ open_fenced_code_backtick_match ~ open_fenced_code_meta }

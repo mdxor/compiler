@@ -9,13 +9,15 @@ use wasm_bindgen::prelude::*;
 
 mod block;
 mod byte;
+mod codegen;
 mod document;
 mod inline;
+mod interrupt;
 mod jsx;
 #[cfg(test)]
 mod jsx_test;
+mod lexer;
 mod parse;
-// mod parser;
 mod punctuation;
 mod raw;
 mod scan;

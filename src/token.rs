@@ -72,10 +72,7 @@ pub enum Align {
 #[derive(Eq, PartialEq, Debug)]
 #[cfg_attr(test, derive(Serialize))]
 pub enum Token<'source> {
-  // transition token value
   Raw(&'source str),
-  FencedCodeEnding,
-  // final token value
   Root,
   Paragraph,
   ATXHeading(HeadingLevel),
@@ -85,9 +82,9 @@ pub enum Token<'source> {
   Code(&'source str),
   BlankLine,
   BlockQuote(usize),
-  FencedCode(FencedCode<'source>),
-  List(u8, bool, u64), // list character, is_tight, ordered index
-  ListItem(usize),     // indent
+  FencedCode,
+  List(u8, bool, &'source str), // list character, is_tight, ordered index
+  ListItem(usize),              // indent
   LinkDefinition,
   Table,
   TableHead,
@@ -106,8 +103,21 @@ impl<'source> Default for Token<'source> {
 #[derive(Eq, PartialEq, Debug)]
 #[cfg_attr(test, derive(Serialize))]
 pub enum InlineToken<'source> {
+  Root,
   Text(&'source str),
   MaybeLinkStart,
   // keyword, repeat, can open, can close
   MaybeEmphasis(u8, usize, bool, bool),
+  // keyword, repeat
+  EmphasisStart(u8, usize),
+  EmphasisEnd(u8, usize),
+  InlineCodeStart,
+  InlineCodeEnd,
+  Code,
+}
+
+impl<'source> Default for InlineToken<'source> {
+  fn default() -> Self {
+    InlineToken::Root
+  }
 }

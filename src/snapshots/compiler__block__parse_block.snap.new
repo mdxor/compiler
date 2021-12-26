@@ -1,0 +1,66 @@
+---
+source: src/block.rs
+expression: parse_source_to_blocks(source)
+
+---
+nodes:
+  - id: 0
+    child: ~
+    last_child: ~
+    prev: ~
+    next: 1
+    item:
+      start: 0
+      end: 0
+      value: Root
+  - id: 1
+    child: ~
+    last_child: ~
+    prev: 0
+    next: 2
+    item:
+      start: 0
+      end: 1
+      value: BlankLine
+  - id: 2
+    child: 3
+    last_child: 3
+    prev: 1
+    next: 4
+    item:
+      start: 1
+      end: 11
+      value:
+        ATXHeading: H1
+  - id: 3
+    child: ~
+    last_child: ~
+    prev: ~
+    next: ~
+    item:
+      start: 3
+      end: 10
+      value:
+        Raw: "ti`tle`"
+  - id: 4
+    child: 5
+    last_child: 5
+    prev: 2
+    next: ~
+    item:
+      start: 11
+      end: 35
+      value: Paragraph
+  - id: 5
+    child: ~
+    last_child: ~
+    prev: ~
+    next: ~
+    item:
+      start: 11
+      end: 34
+      value:
+        Raw: this is a ~~paragraph~~
+spine: []
+cur: 4
+

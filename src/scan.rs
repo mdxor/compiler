@@ -49,15 +49,19 @@ pub(crate) fn scan_eol(bytes: &[u8]) -> Option<usize> {
   }
 }
 
-pub(crate) fn scan_blank_line(bytes: &[u8]) -> Option<usize> {
-  let i = scan_whitespace_no_nl(bytes);
-  scan_eol(&bytes[i..]).map(|n| i + n)
-}
-
 pub(crate) fn scan_raw_line<'source>(bytes: &[u8], source: &'source str) -> (usize, &'source str) {
   let size = memchr(b'\n', bytes).map_or(bytes.len(), |x| x + 1);
   let raw = &source[..size];
   (size, raw)
+}
+
+pub(crate) fn scan_line<'source>(bytes: &[u8]) -> (usize, usize) {
+  let mut eol_size = 0;
+  let size = memchr(b'\n', bytes).map_or(bytes.len(), |x| {
+    eol_size = 1;
+    x + 1
+  });
+  (size, size - eol_size)
 }
 
 pub(crate) fn scan_raw_line_without_source<'source>(bytes: &[u8]) -> usize {

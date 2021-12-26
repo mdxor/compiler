@@ -101,11 +101,6 @@ impl<T: Default> Tree<T> {
     index
   }
 
-  pub fn next_sibling(&mut self) -> Option<usize> {
-    self.cur = self[self.cur.unwrap()].next;
-    self.cur
-  }
-
   pub fn to_root_last_child(&mut self) {
     self.spine = vec![0];
     self.cur = self[0].last_child;
@@ -117,6 +112,34 @@ impl<T: Default> Tree<T> {
 
   pub fn spine(&self) -> &Vec<usize> {
     &self.spine
+  }
+
+  pub fn next_sibling(&mut self) -> Option<usize> {
+    self.cur = self[self.cur.unwrap()].next;
+    self.cur
+  }
+
+  pub fn visit<F>(&mut self, mut callback: F)
+  where
+    F: FnMut(T),
+  {
+    self.spine = vec![];
+    self.cur = Some(0);
+    loop {
+      if let Some(cur) = self.cur {
+        callback(self[cur].item);
+        if self[cur].child.is_some() {
+          self.lower();
+        } else {
+          while self[cur].next.is_none() && self.spine.len() > 0 {
+            self.raise();
+          }
+          self.next_sibling();
+        }
+      } else {
+        return;
+      }
+    }
   }
 }
 
