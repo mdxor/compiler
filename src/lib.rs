@@ -1,6 +1,7 @@
 extern crate wasm_bindgen;
 #[macro_use]
 extern crate lazy_static;
+extern crate pest;
 #[macro_use]
 extern crate pest_derive;
 
@@ -13,7 +14,8 @@ mod inline;
 mod jsx;
 #[cfg(test)]
 mod jsx_test;
-mod parser;
+mod parse;
+// mod parser;
 mod punctuation;
 mod raw;
 mod scan;

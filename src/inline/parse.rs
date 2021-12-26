@@ -58,13 +58,13 @@ fn is_right_flanking_delimiter(raw: &str, start: usize, end: usize) -> bool {
 }
 
 pub(crate) fn parse_block_to_inlines<'source>(
-  block_tree: &mut Tree<Token<TokenValue<'source>>>,
+  block_tree: &mut Tree<Item<Token<'source>>>,
   document: &mut Document<'source>,
   block_id: usize,
 ) {
   let bytes = document.bytes;
   let mut raw = Raw::new(block_tree, bytes, block_id);
-  let mut tokens: Vec<Token<InlineToken>> = vec![];
+  let mut tokens: Vec<Item<InlineToken>> = vec![];
   raw.iterate_bytes(&*SPECIAL_BYTES, |raw, raw_start, start, end| {
     let offset = raw_start + start;
     if start == end {
@@ -79,8 +79,9 @@ pub(crate) fn parse_block_to_inlines<'source>(
           }
           if byte == b'~' {
             if repeat == 2 {
-              tokens.push(Token {
+              tokens.push(Item {
                 start: offset,
+                end: offset + repeat,
                 value: InlineToken::MaybeEmphasis(byte, repeat, can_open, can_close),
               });
               return LoopInstruction::Move(repeat);
@@ -88,15 +89,17 @@ pub(crate) fn parse_block_to_inlines<'source>(
               return LoopInstruction::Move(repeat);
             }
           }
-          tokens.push(Token {
+          tokens.push(Item {
             start: offset,
+            end: offset + repeat,
             value: InlineToken::MaybeEmphasis(byte, repeat, can_open, can_close),
           });
           return LoopInstruction::Move(repeat);
         }
         b'[' => {
-          tokens.push(Token {
+          tokens.push(Item {
             start: offset,
+            end: offset + 1,
             value: InlineToken::MaybeLinkStart,
           });
           return LoopInstruction::None;
@@ -111,8 +114,9 @@ pub(crate) fn parse_block_to_inlines<'source>(
         if bytes[offset + 1] == b'`' {}
       }
     }
-    tokens.push(Token {
+    tokens.push(Item {
       start: offset,
+      end: offset + end - start,
       value: InlineToken::Text(&raw[start..end + 1]),
     });
     return LoopInstruction::None;

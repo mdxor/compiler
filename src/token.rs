@@ -2,15 +2,17 @@
 use serde::Serialize;
 #[derive(Eq, PartialEq, Debug)]
 #[cfg_attr(test, derive(Serialize))]
-pub struct Token<T> {
+pub struct Item<T> {
   pub start: usize,
+  pub end: usize,
   pub value: T,
 }
 
-impl<T: Default> Default for Token<T> {
+impl<T: Default> Default for Item<T> {
   fn default() -> Self {
-    Token {
+    Item {
       start: 0,
+      end: 0,
       value: <T>::default(),
     }
   }
@@ -69,7 +71,7 @@ pub enum Align {
 
 #[derive(Eq, PartialEq, Debug)]
 #[cfg_attr(test, derive(Serialize))]
-pub enum TokenValue<'source> {
+pub enum Token<'source> {
   // transition token value
   Raw(&'source str),
   FencedCodeEnding,
@@ -95,9 +97,9 @@ pub enum TokenValue<'source> {
   TableRow,
 }
 
-impl<'source> Default for TokenValue<'source> {
+impl<'source> Default for Token<'source> {
   fn default() -> Self {
-    TokenValue::Root
+    Token::Root
   }
 }
 

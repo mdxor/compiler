@@ -3,7 +3,7 @@ use crate::document::*;
 use crate::token::*;
 use crate::tree::*;
 pub struct Raw<'source> {
-  block_tree: &'source Tree<Token<TokenValue<'source>>>,
+  block_tree: &'source Tree<Item<Token<'source>>>,
   block_id: usize,
   bytes: &'source [u8],
 }
@@ -14,7 +14,7 @@ pub enum LoopInstruction {
 }
 impl<'source> Raw<'source> {
   pub fn new(
-    block_tree: &'source Tree<Token<TokenValue<'source>>>,
+    block_tree: &'source Tree<Item<Token<'source>>>,
     bytes: &'source [u8],
     block_id: usize,
   ) -> Self {
@@ -33,7 +33,7 @@ impl<'source> Raw<'source> {
       let mut cur = child;
       loop {
         let start = self.block_tree[cur].item.start;
-        if let TokenValue::Raw(raw) = self.block_tree[cur].item.value {
+        if let Token::Raw(raw) = self.block_tree[cur].item.value {
           let mut text_start = 0;
           let mut index = 0;
           let len = raw.len();
