@@ -1,5 +1,5 @@
-use crate::block::document::*;
 use crate::byte::*;
+use crate::document::*;
 use crate::raw::*;
 use crate::scan::*;
 use crate::token::*;

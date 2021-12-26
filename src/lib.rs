@@ -1,11 +1,14 @@
 extern crate wasm_bindgen;
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate pest_derive;
 
 use wasm_bindgen::prelude::*;
 
 mod block;
 mod byte;
+mod document;
 mod inline;
 mod jsx;
 #[cfg(test)]

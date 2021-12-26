@@ -1,9 +1,9 @@
 atx_heading_start = { "#"{1, 6} ~ (" " | "\t" | "\r" | "\n") }
 
-open_code_fence_backtick = _{ open_code_fence_backtick_match ~ (!("`" | "\r" | "\n" | "\x00") ~ ANY)* }
-open_code_fence_backtick_match = { "`"{3,} }
-open_code_fence_tilde = _{ open_code_fence_tilde_match ~ (!("\r" | "\n" | "\x00") ~ ANY)* }
-open_code_fence_tilde_match = { "~"{3,} }
+open_fenced_code_backtick = _{ open_code_fence_backtick_match ~ (!("`" | "\r" | "\n" | "\x00") ~ ANY)* }
+open_fenced_code_backtick_match = { "`"{3,} }
+open_fenced_code_tilde = _{ open_fenced_code_tilde_match ~ (!("\r" | "\n" | "\x00") ~ ANY)* }
+open_fenced_code_tilde_match = { "~"{3,} }
 open_code_fence = _{ (open_code_fence_backtick | open_code_fence_tilde) ~ ("\r" | "\n") }
 
 close_code_fence = _{ close_code_fence_match ~ ("\t" | " ")* ~ ("\r" | "\n") }
