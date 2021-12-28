@@ -1,53 +1,74 @@
-extern crate pest;
-
+extern crate nom;
+// extern crate pest;
 use crate::scan::*;
-use pest::Parser;
+use nom::{
+  branch::alt,
+  bytes::complete::{tag, take_while, take_while_m_n},
+  character::complete::{alpha1, char, line_ending, not_line_ending, space0, space1},
+  character::is_digit,
+  combinator::eof,
+  combinator::map_res,
+  multi::many1,
+  sequence::tuple,
+  IResult,
+};
+// use pest::Parser;
 
-#[derive(Parser)]
-#[grammar = "mdx.pest"]
-struct Lexer;
+// #[derive(Parser)]
+// #[grammar = "mdx.pest"]
+// struct Lexer;
 
-fn search(rule: Rule, str: &str) -> Option<usize> {
-  if let Ok(pairs) = Lexer::parse(rule, str) {
-    Some(pairs.last().unwrap().as_span().end())
+// fn search(rule: Rule, str: &str) -> Option<usize> {
+//   if let Ok(pairs) = Lexer::parse(rule, str) {
+//     Some(pairs.last().unwrap().as_span().end())
+//   } else {
+//     None
+//   }
+// }
+fn atx_heading_start(input: &str) -> IResult<&str, (&str, &str)> {
+  tuple((
+    take_while_m_n(1, 6, |c| c == '#'),
+    alt((line_ending, tag(" "), eof)),
+  ))(input)
+}
+// size, level
+pub(crate) fn scan_atx_heading_start(input: &str) -> Option<(usize, usize)> {
+  if let Ok((_, (opening, follow))) = atx_heading_start(input) {
+    return Some((opening.len() + follow.len(), opening.len()));
+  }
+  None
+}
+
+fn open_fenced_code(input: &str) -> IResult<&str, (&str, &str, &str)> {
+  tuple((
+    alt((take_while(|c| c == '`'), take_while(|c| c == '~'))),
+    // TODO
+    tag("123"),
+    alt((line_ending, space0, eof)),
+  ))(input)
+}
+// size, repeat size, meta
+pub(crate) fn scan_open_fenced_code(input: &str) -> Option<(usize, usize, &str)> {
+  if let Ok((next_input, (fenced, meta, _))) = open_fenced_code(input) {
+    Some((input.len() - next_input.len(), fenced.len(), meta.trim()))
   } else {
     None
   }
 }
-// size, level
-pub(crate) fn scan_atx_heading_start(str: &str) -> Option<(usize, usize)> {
-  let mut pairs = Lexer::parse(Rule::atx_heading_start, str).ok()?;
-  let pair = pairs.next().unwrap();
-  let mut size = pair.as_span().end();
-  let mut inner = pair.into_inner();
-  let level = inner.next().unwrap().as_span().end();
-  if let Some(line_end) = inner.next() {
-    let end_span = line_end.as_span();
-    let end_size = end_span.end() - end_span.start();
-    size -= end_size;
-  }
-  Some((size, level))
-}
 
-// size, repeat size, meta
-pub(crate) fn scan_open_fenced_code(str: &str) -> Option<(usize, usize, &str)> {
-  let mut pairs = Lexer::parse(Rule::open_fenced_code, str).ok()?;
-  let pair = pairs.next().unwrap();
-  let size = pair.as_span().end();
-  let mut inner = pair.into_inner();
-  let repeat = inner.next().unwrap().as_span().end();
-  let meta_span = inner.next().unwrap().as_span();
-  let meta = &str[meta_span.start()..meta_span.end()];
-  Some((size, repeat, meta))
+fn close_fenced_code(input: &str) -> IResult<&str, (&str, &str)> {
+  tuple((
+    alt((take_while(|c| c == '`'), take_while(|c| c == '~'))),
+    alt((line_ending, space0, eof)),
+  ))(input)
 }
-
 // size, repeat size
-pub(crate) fn scan_close_fenced_code(str: &str) -> Option<(usize, usize)> {
-  let mut pairs = Lexer::parse(Rule::close_fenced_code, str).ok()?;
-  let pair = pairs.next().unwrap();
-  let size = pair.as_span().end();
-  let repeat = pair.into_inner().next().unwrap().as_span().end();
-  Some((size, repeat))
+pub(crate) fn scan_close_fenced_code(input: &str) -> Option<(usize, usize)> {
+  if let Ok((next_input, (fenced, _))) = close_fenced_code(input) {
+    return Some((input.len() - next_input.len(), fenced.len()));
+  } else {
+    None
+  }
 }
 
 // size, level
@@ -77,40 +98,79 @@ pub(crate) fn scan_block_quote(bytes: &[u8]) -> Option<(usize, usize)> {
   }
 }
 
+fn list_item_start(input: &str) -> IResult<&str, ((&str, &str), &str)> {
+  tuple((
+    alt((
+      tuple((tag("-"), tag(""))),
+      tuple((tag("*"), tag(""))),
+      tuple((tag("+"), tag(""))),
+      tuple((
+        take_while(|v| v > '0' && v < '9'),
+        alt((tag("."), tag(")"))),
+      )),
+    )),
+    alt((line_ending, eof, tag(" "))),
+  ))(input)
+}
 // size, marker size
-pub(crate) fn scan_list_item_start(str: &str) -> Option<(usize, usize)> {
-  let mut pairs = Lexer::parse(Rule::list_item_start, str).ok()?;
-  let pair = pairs.next().unwrap();
-  let mut size = pair.as_span().end();
-  let mut inner = pair.into_inner();
-  let marker_size = inner.next().unwrap().as_span().end();
-  if let Some(line_end) = inner.next() {
-    let end_span = line_end.as_span();
-    let end_size = end_span.end() - end_span.start();
-    size -= end_size;
+pub(crate) fn scan_list_item_start(input: &str) -> Option<(usize, usize)> {
+  if let Ok((next_input, (_, close))) = list_item_start(input) {
+    let size = input.len() - next_input.len();
+    Some((size, size - close.len()))
+  } else {
+    None
   }
-  Some((size, marker_size))
 }
 
-pub(crate) fn scan_setext_heading(str: &str) -> Option<usize> {
-  search(Rule::setext_heading, str)
+fn setext_heading(input: &str) -> IResult<&str, (&str, &str, &str)> {
+  tuple((
+    alt((take_while(|c| c == '='), take_while(|c| c == '-'))),
+    space0,
+    alt((line_ending, eof)),
+  ))(input)
+}
+pub(crate) fn scan_setext_heading(input: &str) -> Option<usize> {
+  if let Ok((next_input, _)) = setext_heading(input) {
+    Some(input.len() - next_input.len())
+  } else {
+    None
+  }
 }
 
-pub(crate) fn scan_thematic_break(str: &str) -> Option<usize> {
-  search(Rule::thematic_break, str)
+fn thematic_break(input: &str) -> IResult<&str, (Vec<(char, &str)>, &str)> {
+  tuple((
+    alt((
+      many1(tuple((char('*'), space0))),
+      many1(tuple((char('-'), space0))),
+      many1(tuple((char('_'), space0))),
+    )),
+    alt((line_ending, eof)),
+  ))(input)
+}
+pub(crate) fn scan_thematic_break(input: &str) -> Option<usize> {
+  if let Ok((next_input, _)) = thematic_break(input) {
+    Some(input.len() - next_input.len())
+  } else {
+    None
+  }
 }
 
-pub(crate) fn scan_blank_line(str: &str) -> Option<usize> {
-  search(Rule::blank_line, str)
+fn blank_line(input: &str) -> IResult<&str, (&str, &str)> {
+  tuple((space0, alt((line_ending, eof))))(input)
 }
-
+pub(crate) fn scan_blank_line(input: &str) -> Option<usize> {
+  if let Ok((next_input, _)) = blank_line(input) {
+    Some(input.len() - next_input.len())
+  } else {
+    None
+  }
+}
 #[test]
 fn test_scan_atx_heading_start() {
-  println!("{:?}", scan_atx_heading_start("#\n"));
-  println!("{:?}", scan_atx_heading_start("# \n"));
-  println!("{:?}", scan_atx_heading_start("# "));
-  println!("{:?}", scan_open_fenced_code("```"));
-  println!("{:?}", scan_close_fenced_code("````   \n"));
-  println!("{:?}", scan_close_fenced_code("````   "));
-  println!("{:?}", scan_close_fenced_code("``   "));
+  // println!("{:?}", scan_atx_heading_start("# 123"));
+  println!("{:?}", scan_open_fenced_code("123```\n"));
+  // println!("{:?}", scan_list_item_start("- 123"));
+  // println!("{:?}", scan_close_fenced_code("```   "));
+  // println!("{:?}", scan_blank_line(""));
+  // println!("{:?}", scan_setext_heading("===== "));
 }

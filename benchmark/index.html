@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Benchmark</title>
+  </head>
+  <body>
+    <script src="https://cdn.jsdelivr.net/npm/lodash/lodash.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/platform/platform.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/benchmark/benchmark.js"></script>
+    <script type="module">
+      import { compileSync } from "https://jspm.dev/@mdx-js/mdx@next"
+      import init, { parse } from "../pkg/compiler.js"
+
+      const suite = new Benchmark.Suite()
+      const main = async () => {
+        await init()
+        const res = await fetch("/benchmark/test.md")
+        const source = await res.text()
+        suite
+          .add("mdxor compiler", () => {
+            parse(source)
+          })
+          .add("mdx", () => {
+            compileSync(source)
+          })
+          .on("cycle", event => {
+            console.log(String(event.target))
+          })
+          .on("complete", function () {
+            console.log("Fastest is " + this.filter("fastest").map("name"))
+          })
+          .run()
+      }
+      main()
+    </script>
+  </body>
+</html>
