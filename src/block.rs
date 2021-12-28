@@ -5,9 +5,12 @@ use crate::scan::*;
 use crate::token::*;
 use crate::tree::*;
 
-fn parse_source_to_blocks<'source>(source: &'source str) -> Tree<Item<Token<'source>>> {
+pub fn parse_source_to_blocks<'source>(
+  source: &'source str,
+) -> (Tree<Item<Token<'source>>>, Document<'source>) {
   let mut document = Document::new(source);
   let mut tree: Tree<Item<Token<'source>>> = Tree::new();
+  tree.lower();
   while document.start() < document.bytes.len() {
     let bytes = document.bytes();
     let source = document.source();
@@ -21,7 +24,7 @@ fn parse_source_to_blocks<'source>(source: &'source str) -> Tree<Item<Token<'sou
     document.forward(size);
     scan_block(&mut tree, &mut document);
   }
-  tree
+  (tree, document)
 }
 
 fn scan_block<'source>(tree: &mut Tree<Item<Token<'source>>>, document: &mut Document<'source>) {
@@ -205,6 +208,7 @@ fn scan_container_block<'source>(
       end: size + offset,
       value: Token::BlockQuote(level),
     });
+    document.forward_to(size + offset);
     return true;
   }
 
@@ -226,6 +230,7 @@ fn scan_container_block<'source>(
             end: start + size + ending_indent,
             value: Token::ListItem(spaces + size + ending_indent),
           });
+          document.forward_to(start + size + ending_indent);
           return true;
         }
       }
@@ -236,16 +241,24 @@ fn scan_container_block<'source>(
       end: start + size + ending_indent,
       value: Token::List(ch, false, order_index),
     });
+    tree.lower();
+    tree.append(Item {
+      start,
+      end: start + size + ending_indent,
+      value: Token::ListItem(spaces + size + ending_indent),
+    });
+    document.forward_to(start + size + ending_indent);
     return true;
   }
   false
 }
 
-#[test]
-fn test_parse_block() {
-  let source = r#"
-# ti`tle`
-this is a ~~paragraph~~
-"#;
-  insta::assert_yaml_snapshot!(parse_source_to_blocks(source));
-}
+// #[test]
+// fn test_parse_block() {
+//   let source = r#"
+// # ti`tle`
+// this is a ~~paragraph~~
+// > 123
+// "#;
+//   insta::assert_yaml_snapshot!(parse_source_to_blocks(source).0);
+// }

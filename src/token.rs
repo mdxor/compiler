@@ -41,6 +41,17 @@ impl HeadingLevel {
       _ => None,
     }
   }
+
+  pub fn to_str(&self) -> &str {
+    match self {
+      HeadingLevel::H1 => "h1",
+      HeadingLevel::H2 => "h2",
+      HeadingLevel::H3 => "h3",
+      HeadingLevel::H4 => "h4",
+      HeadingLevel::H5 => "h5",
+      HeadingLevel::H6 => "h6",
+    }
+  }
 }
 
 #[derive(Eq, PartialEq, Debug)]

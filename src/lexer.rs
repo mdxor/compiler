@@ -3,9 +3,9 @@ extern crate pest;
 use crate::scan::*;
 use pest::Parser;
 
-// #[derive(Parser)]
-// #[grammar = "mdx.pest"]
-// struct Lexer;
+#[derive(Parser)]
+#[grammar = "mdx.pest"]
+struct Lexer;
 
 fn search(rule: Rule, str: &str) -> Option<usize> {
   if let Ok(pairs) = Lexer::parse(rule, str) {

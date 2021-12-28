@@ -18,15 +18,15 @@ lazy_static! {
 fn is_left_flanking_delimiter(raw: &str, start: usize, end: usize) -> bool {
   let bytes = raw.as_bytes();
   let len = bytes.len();
-  if end >= len - 1 || is_ascii_whitespace(bytes[end + 1]) {
+  if end >= len || is_ascii_whitespace(bytes[end]) {
     return false;
   }
-  let next_char = if let Some(c) = raw.chars().nth(end + 1) {
+  let next_char = if let Some(c) = raw.chars().nth(end) {
     c
   } else {
     return true;
   };
-  if is_punctuation(next_char)
+  if !is_punctuation(next_char)
     && (start == 0
       || is_ascii_whitespace(bytes[start - 1])
       || is_punctuation(raw[..start].chars().last().unwrap()))
@@ -47,9 +47,9 @@ fn is_right_flanking_delimiter(raw: &str, start: usize, end: usize) -> bool {
   } else {
     return true;
   };
-  if is_punctuation(prev_char)
-    && (end >= len - 1
-      || is_ascii_whitespace(bytes[end + 1])
+  if !is_punctuation(prev_char)
+    && (end >= len
+      || is_ascii_whitespace(bytes[end])
       || is_punctuation(raw[end..].chars().next().unwrap()))
   {
     return true;
@@ -58,155 +58,175 @@ fn is_right_flanking_delimiter(raw: &str, start: usize, end: usize) -> bool {
 }
 
 pub(crate) fn parse_block_to_inlines<'source>(
-  block_tree: &'source mut Tree<Item<Token<'source>>>,
+  block_tree: &mut Tree<Item<Token<'source>>>,
   document: &mut Document<'source>,
   block_id: usize,
 ) -> Vec<Item<InlineToken<'source>>> {
   let bytes = document.bytes;
-  let mut raw = Raw::new(block_tree, bytes, block_id);
   let mut tokens: Vec<Item<InlineToken>> = vec![];
   // (start, repeat)
   let mut inline_code_stack: Vec<(usize, usize)> = vec![];
-  raw.iterate_bytes(&*SPECIAL_BYTES, |raw, raw_start, start, end| {
-    let offset = raw_start + start;
-    if end - start == 1 {
-      let byte = bytes[offset];
-      match byte {
-        b'`' => {
-          let repeat = scan_ch_repeat(&bytes[offset..], b'`');
-          inline_code_stack.push((offset, repeat));
-          return LoopInstruction::Move(repeat);
+  iterate_raw(
+    block_tree,
+    block_id,
+    bytes,
+    &*SPECIAL_BYTES,
+    |raw, raw_start, start, end| {
+      let offset = raw_start + start;
+      if end - start == 1 {
+        let byte = bytes[offset];
+        match byte {
+          b'`' => {
+            let repeat = scan_ch_repeat(&bytes[offset..], b'`');
+            inline_code_stack.push((offset, repeat));
+            return LoopInstruction::Move(repeat);
+          }
+          _ => (),
         }
-        _ => (),
-      }
-    } else if end - start == 2 {
-      // escaped
-      if bytes[offset] == b'\\' {
-        if bytes[offset + 1] == b'`' {
-          let repeat = scan_ch_repeat(&bytes[offset + 1..], b'`');
-          inline_code_stack.push((offset + 1, repeat));
-          return LoopInstruction::Move(repeat + 1);
+      } else if end - start == 2 {
+        // escaped
+        if bytes[offset] == b'\\' {
+          if bytes[offset + 1] == b'`' {
+            let repeat = scan_ch_repeat(&bytes[offset + 1..], b'`');
+            inline_code_stack.push((offset + 1, repeat));
+            return LoopInstruction::Move(repeat + 1);
+          }
         }
       }
-    }
-    return LoopInstruction::None;
-  });
+      return LoopInstruction::None;
+    },
+  );
 
   let mut code_end: Option<usize> = None;
 
-  raw.iterate_bytes(&*SPECIAL_BYTES, |raw, raw_start, start, end| {
-    let offset = raw_start + start;
-    if end == start && start == 0 {
-      if let Some(code_end) = code_end {
-        if code_end >= raw_start + raw.len() {
-          tokens.push(Item {
-            start: offset,
-            end: offset + raw.len(),
-            value: InlineToken::Code,
-          });
-          return LoopInstruction::Move(raw.len() - start);
-        } else {
-          tokens.push(Item {
-            start: offset,
-            end: code_end,
-            value: InlineToken::Code,
-          });
-          return LoopInstruction::Move(code_end - offset);
-        }
-      }
-    } else if end - start == 1 {
-      let byte = bytes[raw_start + start];
-      match byte {
-        b'*' | b'_' | b'~' => {
-          let repeat = scan_ch_repeat(&bytes[offset..], b'*');
-          let can_open = is_left_flanking_delimiter(raw, start, start + repeat - 1);
-          let can_close = is_right_flanking_delimiter(raw, start, start + repeat - 1);
-          if !can_open && !can_close {
-            return LoopInstruction::Text(repeat);
+  iterate_raw(
+    block_tree,
+    block_id,
+    bytes,
+    &*SPECIAL_BYTES,
+    |raw, raw_start, start, end| {
+      let offset = raw_start + start;
+      if end == start && start == 0 {
+        if let Some(code_end) = code_end {
+          if code_end >= raw_start + raw.len() {
+            tokens.push(Item {
+              start: offset,
+              end: offset + raw.len(),
+              value: InlineToken::Code,
+            });
+            return LoopInstruction::Move(raw.len() - start);
+          } else {
+            tokens.push(Item {
+              start: offset,
+              end: code_end,
+              value: InlineToken::Code,
+            });
+            return LoopInstruction::Move(code_end - offset);
           }
-          if byte == b'~' {
-            if repeat == 2 {
+        }
+      } else if end - start == 1 {
+        let byte = bytes[raw_start + start];
+        match byte {
+          b'*' | b'_' | b'~' => {
+            let repeat = scan_ch_repeat(&bytes[offset..], byte);
+            let can_open = is_left_flanking_delimiter(raw, start, start + repeat);
+            let can_close = is_right_flanking_delimiter(raw, start, start + repeat);
+            if !can_open && !can_close {
+              return LoopInstruction::Text(repeat);
+            }
+            if byte == b'~' {
+              if repeat == 2 {
+                tokens.push(Item {
+                  start: offset,
+                  end: offset + repeat,
+                  value: InlineToken::MaybeEmphasis(byte, repeat, can_open, can_close),
+                });
+                return LoopInstruction::Move(repeat);
+              } else {
+                return LoopInstruction::Text(repeat);
+              }
+            }
+            tokens.push(Item {
+              start: offset,
+              end: offset + repeat,
+              value: InlineToken::MaybeEmphasis(byte, repeat, can_open, can_close),
+            });
+            return LoopInstruction::Move(repeat);
+          }
+          // b'[' => {
+          //   tokens.push(Item {
+          //     start: offset,
+          //     end: offset + 1,
+          //     value: InlineToken::MaybeLinkStart,
+          //   });
+          //   return LoopInstruction::None;
+          // }
+          // b']' => {}
+          b'`' => {
+            let repeat = scan_ch_repeat(&bytes[offset..], b'`');
+            if code_end.is_some() {
               tokens.push(Item {
                 start: offset,
                 end: offset + repeat,
-                value: InlineToken::MaybeEmphasis(byte, repeat, can_open, can_close),
+                value: InlineToken::InlineCodeEnd,
               });
-              return LoopInstruction::Move(repeat);
-            } else {
+              code_end = None;
               return LoopInstruction::Move(repeat);
             }
+            if let Some(index) = inline_code_stack
+              .iter()
+              .position(|(end, re)| *end > offset && *re == repeat)
+            {
+              // TODO:
+              while inline_code_stack.len() > index + 1 {
+                inline_code_stack.pop();
+              }
+              let (end, _) = inline_code_stack.pop().unwrap();
+              tokens.push(Item {
+                start: offset,
+                end: offset + repeat,
+                value: InlineToken::InlineCodeStart,
+              });
+              code_end = Some(end);
+              if end >= raw_start + raw.len() {
+                tokens.push(Item {
+                  start: offset + repeat,
+                  end: raw.len() - start,
+                  value: InlineToken::Code,
+                });
+                return LoopInstruction::Move(raw.len() - start);
+              } else {
+                tokens.push(Item {
+                  start: offset + repeat,
+                  end: end,
+                  value: InlineToken::Code,
+                });
+                return LoopInstruction::Move(end - offset);
+              }
+            }
           }
+          _ => (),
+        }
+      } else if end - start == 2 {
+        // escaped
+        if bytes[offset] == b'\\' {
           tokens.push(Item {
             start: offset,
-            end: offset + repeat,
-            value: InlineToken::MaybeEmphasis(byte, repeat, can_open, can_close),
+            end: offset + end - start,
+            value: InlineToken::Text(&raw[start + 1..end]),
           });
-          return LoopInstruction::Move(repeat);
+          return LoopInstruction::None;
         }
-        // b'[' => {
-        //   tokens.push(Item {
-        //     start: offset,
-        //     end: offset + 1,
-        //     value: InlineToken::MaybeLinkStart,
-        //   });
-        //   return LoopInstruction::None;
-        // }
-        // b']' => {}
-        b'`' => {
-          let repeat = scan_ch_repeat(&bytes[offset..], b'`');
-          if code_end.is_some() {
-            tokens.push(Item {
-              start: offset,
-              end: offset + repeat,
-              value: InlineToken::InlineCodeEnd,
-            });
-            code_end = None;
-            return LoopInstruction::Move(repeat);
-          }
-          if let Some((end, _)) = inline_code_stack.iter().find(|(_, re)| *re == repeat) {
-            tokens.push(Item {
-              start: offset,
-              end: offset + repeat,
-              value: InlineToken::InlineCodeStart,
-            });
-            code_end = Some(*end);
-            if *end >= raw_start + raw.len() {
-              tokens.push(Item {
-                start: offset + repeat,
-                end: raw.len() - start,
-                value: InlineToken::Code,
-              });
-              return LoopInstruction::Move(raw.len() - start);
-            } else {
-              tokens.push(Item {
-                start: offset + repeat,
-                end: *end,
-                value: InlineToken::Code,
-              });
-              return LoopInstruction::Move(*end - offset);
-            }
-          }
-        }
-        _ => (),
       }
-    } else if end - start == 2 {
-      // escaped
-      if bytes[offset] == b'\\' {
-        tokens.push(Item {
-          start: offset,
-          end: offset + end - start,
-          value: InlineToken::Text(&raw[start + 1..end]),
-        });
-        return LoopInstruction::None;
-      }
-    }
-    tokens.push(Item {
-      start: offset,
-      end: offset + end - start,
-      value: InlineToken::Text(&raw[start..end]),
-    });
-    return LoopInstruction::None;
-  });
+      tokens.push(Item {
+        start: offset,
+        end: offset + end - start,
+        value: InlineToken::Text(&raw[start..end]),
+      });
+      return LoopInstruction::None;
+    },
+  );
+
   process_tokens(&mut tokens, document);
   tokens
 }
@@ -226,7 +246,7 @@ fn process_tokens<'source>(
           .iter()
           .position(|(em_ch, em_repeat, _)| ch == *em_ch && repeat == *em_repeat);
         if let Some(em_index) = em_index {
-          while em_index < emphasis_stack.len() {
+          while em_index + 1 < emphasis_stack.len() {
             let (.., id) = emphasis_stack.pop().unwrap();
             let start = tokens[id].start;
             let end = tokens[id].end;

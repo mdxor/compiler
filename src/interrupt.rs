@@ -16,9 +16,10 @@ pub(crate) fn continue_paragraph<'source>(
     let source = &source[size + spaces..];
     let bytes = &bytes[size + spaces..];
     if scan_atx_heading_start(source).is_none()
-      && scan_blank_line(source).is_none()
-      && scan_block_quote(bytes).is_none()
+      && scan_eol(bytes).is_none()
+      && bytes[0] != b'>'
       && scan_thematic_break(source).is_none()
+      && scan_setext_heading(source).is_none()
       && scan_open_fenced_code(source).is_none()
     {
       return Some(size);
