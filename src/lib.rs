@@ -1,9 +1,6 @@
 extern crate wasm_bindgen;
 #[macro_use]
 extern crate lazy_static;
-extern crate pest;
-#[macro_use]
-extern crate pest_derive;
 
 use wasm_bindgen::prelude::*;
 
@@ -28,15 +25,15 @@ use crate::codegen::*;
 
 #[wasm_bindgen]
 pub fn parse(source: &str) -> String {
-    let (mut tree, mut document) = parse_source_to_blocks(source);
-    let mut codegen = Codegen::new();
-    codegen.gen(&mut tree, &mut document);
-    codegen.code
+  let (mut tree, mut document) = parse_source_to_blocks(source);
+  let mut codegen = Codegen::new();
+  codegen.gen(&mut tree, &mut document);
+  codegen.code
 }
 
 #[test]
 fn test_parse() {
-    let source = r#"
+  let source = r#"
 # ti`tle`
 this is a ~~paragraph~~
 > 123321
@@ -44,5 +41,5 @@ this is a ~~paragraph~~
 - list item 1
 - list item2
 "#;
-    println!("{}", parse(source));
+  println!("{}", parse(source));
 }

@@ -9,7 +9,7 @@ use nom::{
   combinator::eof,
   combinator::map_res,
   multi::many1,
-  sequence::tuple,
+  sequence::{terminated, tuple},
   IResult,
 };
 // use pest::Parser;
@@ -39,18 +39,31 @@ pub(crate) fn scan_atx_heading_start(input: &str) -> Option<(usize, usize)> {
   None
 }
 
-fn open_fenced_code(input: &str) -> IResult<&str, (&str, &str, &str)> {
+fn open_fenced_code(input: &str) -> IResult<&str, ((&str, &str, &str), &str)> {
   tuple((
-    alt((take_while(|c| c == '`'), take_while(|c| c == '~'))),
-    // TODO
-    tag("123"),
+    alt((
+      tuple((
+        tag("```"),
+        take_while(|c| c == '`'),
+        take_while(|c| c != '`' && c != '\r' && c != '\n'),
+      )),
+      tuple((
+        tag("~~~"),
+        take_while(|c| c == '~'),
+        take_while(|c| c != '\r' && c != '\n'),
+      )),
+    )),
     alt((line_ending, space0, eof)),
   ))(input)
 }
 // size, repeat size, meta
 pub(crate) fn scan_open_fenced_code(input: &str) -> Option<(usize, usize, &str)> {
-  if let Ok((next_input, (fenced, meta, _))) = open_fenced_code(input) {
-    Some((input.len() - next_input.len(), fenced.len(), meta.trim()))
+  if let Ok((next_input, ((fenced, fenced_rest, meta), _))) = open_fenced_code(input) {
+    Some((
+      input.len() - next_input.len(),
+      fenced.len() + fenced_rest.len(),
+      meta.trim(),
+    ))
   } else {
     None
   }
@@ -71,28 +84,16 @@ pub(crate) fn scan_close_fenced_code(input: &str) -> Option<(usize, usize)> {
   }
 }
 
+fn block_quote(input: &str) -> IResult<&str, Vec<&str>> {
+  many1(terminated(tag(">"), take_while_m_n(0, 3, |c| c != ' ')))(input)
+}
 // size, level
-pub(crate) fn scan_block_quote(bytes: &[u8]) -> Option<(usize, usize)> {
-  if bytes.len() > 0 && bytes[0] == b'>' {
-    let mut spaces = 0;
-    let mut level = 1;
-    let size = scan_while(&bytes[1..], |x| match x {
-      b'>' => {
-        level += 1;
-        spaces = 0;
-        true
-      }
-      b' ' => {
-        spaces += 1;
-        if spaces > 3 {
-          false
-        } else {
-          true
-        }
-      }
-      _ => false,
-    }) + 1;
-    Some((size, level))
+pub(crate) fn scan_block_quote(input: &str) -> Option<(usize, usize)> {
+  if let Ok((next_input, matches)) = block_quote(input) {
+    let last = matches.last().unwrap();
+    let spaces = last.len() - last.trim_end().len();
+    let size = input.len() - next_input.len() - if spaces > 1 { spaces - 1 } else { 0 };
+    Some((size, matches.len()))
   } else {
     None
   }

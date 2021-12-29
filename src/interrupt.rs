@@ -47,7 +47,7 @@ pub(crate) fn continue_container<'source>(
       if let Token::BlockQuote(level) = tree[id].item.value {
         if spaces >= 4 {
           return (size, level);
-        } else if let Some((quote_size, quote_level)) = scan_block_quote(&bytes[size..]) {
+        } else if let Some((quote_size, quote_level)) = scan_block_quote(&source[size..]) {
           if level == quote_level {
             spaces = 0;
             offset += quote_size;

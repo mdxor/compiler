@@ -202,7 +202,7 @@ fn scan_container_block<'source>(
     return false;
   }
 
-  if let Some((size, level)) = scan_block_quote(bytes) {
+  if let Some((size, level)) = scan_block_quote(source) {
     tree.append(Item {
       start,
       end: size + offset,
