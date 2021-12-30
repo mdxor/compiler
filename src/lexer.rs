@@ -157,6 +157,20 @@ fn import_declaration(input: &[u8]) -> IResult<&[u8], ()> {
   let (input, _) = preceded(space0, tag("import"))(input)?;
   Ok((input, ()))
 }
+fn import_declaration_specifier(input: &[u8]) -> IResult<&[u8], ()> {
+  let mut input = input;
+  if let Ok((rest, _)) = variable(input) {
+    input = rest;
+    if let Ok((rest, _)) = comma(input) {
+      input = rest;
+    } else {
+      return Ok((input, ()));
+    }
+  }
+  let (rest, _) = import_declaration_object_specifier(input)?;
+  Ok((rest, ()))
+}
+// TODO
 fn import_declaration_object_specifier(input: &[u8]) -> IResult<&[u8], ()> {
   let (input, _) = char('{')(input)?;
   let (input, _) = char('}')(input)?;
