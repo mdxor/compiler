@@ -1,30 +1,16 @@
 extern crate nom;
-// extern crate pest;
 use crate::scan::*;
 use nom::{
   branch::alt,
-  bytes::complete::{tag, take_while, take_while_m_n},
+  bytes::complete::{tag, take_till, take_while, take_while_m_n},
   character::complete::{alpha1, char, line_ending, not_line_ending, space0, space1},
-  character::is_digit,
+  character::{is_alphabetic, is_alphanumeric, is_digit},
   combinator::eof,
   combinator::map_res,
-  multi::many1,
-  sequence::{terminated, tuple},
+  multi::{many1, many_m_n},
+  sequence::{delimited, pair, preceded, terminated, tuple},
   IResult,
 };
-// use pest::Parser;
-
-// #[derive(Parser)]
-// #[grammar = "mdx.pest"]
-// struct Lexer;
-
-// fn search(rule: Rule, str: &str) -> Option<usize> {
-//   if let Ok(pairs) = Lexer::parse(rule, str) {
-//     Some(pairs.last().unwrap().as_span().end())
-//   } else {
-//     None
-//   }
-// }
 fn atx_heading_start(input: &str) -> IResult<&str, (&str, &str)> {
   tuple((
     take_while_m_n(1, 6, |c| c == '#'),
@@ -165,6 +151,48 @@ pub(crate) fn scan_blank_line(input: &str) -> Option<usize> {
   } else {
     None
   }
+}
+
+fn import_declaration(input: &[u8]) -> IResult<&[u8], ()> {
+  let (input, _) = preceded(space0, tag("import"))(input)?;
+  Ok((input, ()))
+}
+fn import_declaration_object_specifier(input: &[u8]) -> IResult<&[u8], ()> {
+  let (input, _) = char('{')(input)?;
+  let (input, _) = char('}')(input)?;
+  Ok((input, ()))
+}
+fn comma(input: &[u8]) -> IResult<&[u8], ()> {
+  let (input, _) = spaces_newlines(input)?;
+  let (input, _) = char(',')(input)?;
+  let (input, _) = spaces_newlines(input)?;
+  Ok((input, ()))
+}
+fn variable(input: &[u8]) -> IResult<&[u8], (&[u8], &[u8])> {
+  pair(
+    take_while_m_n(1, 1, |c| is_alphabetic(c) || c == b'_' || c == b'$'),
+    take_while(|c| is_alphanumeric(c) || c == b'_' || c == b'$'),
+  )(input)
+}
+fn spaces_newlines(input: &[u8]) -> IResult<&[u8], Vec<&[u8]>> {
+  many1(alt((space0, line_ending)))(input)
+}
+fn spaces_newline(input: &[u8]) -> IResult<&[u8], (&[u8], Vec<&[u8]>, &[u8])> {
+  tuple((space0, many_m_n(0, 1, line_ending), space0))(input)
+}
+fn import_declaration_source(input: &[u8]) -> IResult<&[u8], &[u8]> {
+  alt((
+    delimited(
+      char('\''),
+      take_till(|c| c == b' ' || c == b'\r' || c == b'\n' || c == b'\''),
+      char('\''),
+    ),
+    (delimited(
+      char('"'),
+      take_till(|c| c == b' ' || c == b'\r' || c == b'\n' || c == b'"'),
+      char('"'),
+    )),
+  ))(input)
 }
 #[test]
 fn test_scan_atx_heading_start() {

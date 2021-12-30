@@ -27,6 +27,16 @@ pub fn parse_source_to_blocks<'source>(
   (tree, document)
 }
 
+// check tree[cur] is a paragraph
+fn is_cur_paragraph<'source>(tree: &mut Tree<Item<Token<'source>>>) -> bool {
+  if let Some(cur) = tree.cur() {
+    if let Token::Paragraph = tree[cur].item.value {
+      return true;
+    }
+  }
+  false
+}
+
 fn scan_block<'source>(tree: &mut Tree<Item<Token<'source>>>, document: &mut Document<'source>) {
   let bytes = document.bytes();
   let source = document.source();
@@ -36,44 +46,27 @@ fn scan_block<'source>(tree: &mut Tree<Item<Token<'source>>>, document: &mut Doc
     tree.lower();
     scan_block(tree, document);
   } else if !scan_leaf_block(tree, document) {
-    let (mut line_size, mut raw_size) = scan_line(&bytes);
+    let (mut line_size, _) = scan_line(&bytes);
     let start = document.start();
     let offset = document.offset();
-    tree.append(Item {
-      start,
-      end: start,
-      value: Token::Paragraph,
-    });
-    let mut size = 0;
-    tree.lower();
-    loop {
-      if let Some(container_size) = continue_paragraph(
-        &bytes[size + line_size..],
-        &source[size + line_size..],
-        tree,
-      ) {
-        let (next_line_size, next_raw_size) =
-          scan_line(&bytes[size + line_size + container_size..]);
-        tree.append(Item {
-          start: offset + size,
-          end: offset + size + line_size,
-          value: Token::Raw(&source[size..size + line_size]),
-        });
-        size += line_size + container_size;
-        line_size = next_line_size;
-        raw_size = next_raw_size;
-      } else {
-        break;
-      }
+    if is_cur_paragraph(tree) {
+      tree.lower_to_last();
+    } else {
+      tree.append(Item {
+        start,
+        end: start,
+        value: Token::Paragraph,
+      });
+      tree.lower();
     }
+    let end = offset + line_size;
     tree.append(Item {
-      start: offset + size,
-      end: offset + size + raw_size,
-      value: Token::Raw(&source[size..size + raw_size]),
+      start: start,
+      end,
+      value: Token::Raw(&source[..line_size]),
     });
     tree.raise();
     let cur = tree.cur().unwrap();
-    let end = offset + size + line_size;
     tree[cur].item.end = end;
     document.forward_to(end);
   }

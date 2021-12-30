@@ -7,32 +7,28 @@
     <title>Benchmark</title>
   </head>
   <body>
-    <script src="https://cdn.jsdelivr.net/npm/lodash/lodash.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/platform/platform.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/benchmark/benchmark.js"></script>
     <script type="module">
       import { compileSync } from "https://jspm.dev/@mdx-js/mdx@next"
       import init, { parse } from "../pkg/compiler.js"
 
-      const suite = new Benchmark.Suite()
       const main = async () => {
         await init()
         const res = await fetch("/benchmark/test.md")
         const source = await res.text()
-        suite
-          .add("mdxor compiler", () => {
-            parse(source)
-          })
-          .add("mdx", () => {
-            compileSync(source)
-          })
-          .on("cycle", event => {
-            console.log(String(event.target))
-          })
-          .on("complete", function () {
-            console.log("Fastest is " + this.filter("fastest").map("name"))
-          })
-          .run()
+
+        let times = 3000
+        let now = performance.now()
+        for (let i = 0; i < times; i++) {
+          parse(source)
+        }
+        const wasmTime = performance.now() - now
+
+        now = performance.now()
+        for (let i = 0; i < times; i++) {
+          compileSync(source)
+        }
+        const mdxTime = performance.now() - now
+        console.log("speed: ", mdxTime / wasmTime, "x")
       }
       main()
     </script>
