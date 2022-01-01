@@ -14,6 +14,11 @@ lazy_static = "1.4.0"
 regex = "1.5.4"
 memchr = "2.3"
 nom = "7"
+swc_atoms = "0.2.0"
+swc_common = "0.15.1"
+swc_ecma_ast = "0.60.4"
+swc_ecma_parser = "0.82.6"
+swc_ecma_utils = "0.52.0"
 
 [dev-dependencies]
 insta = "1.8.0"

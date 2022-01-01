@@ -14,6 +14,7 @@ mod jsx;
 #[cfg(test)]
 mod jsx_test;
 mod lexer;
+mod module;
 mod parse;
 mod punctuation;
 mod raw;
