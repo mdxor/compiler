@@ -1,7 +1,7 @@
 use crate::document::*;
+use crate::input::*;
 use crate::interrupt::*;
 use crate::lexer::*;
-use crate::scan::*;
 use crate::token::*;
 use crate::tree::*;
 
@@ -40,13 +40,13 @@ fn is_cur_paragraph<'source>(tree: &mut Tree<Item<Token<'source>>>) -> bool {
 fn scan_block<'source>(tree: &mut Tree<Item<Token<'source>>>, document: &mut Document<'source>) {
   let bytes = document.bytes();
   let source = document.source();
-  let spaces = scan_spaces(bytes);
-  document.forward_offset(spaces);
+  let (_, spaces_size) = spaces(bytes);
+  document.forward_offset(spaces_size);
   if scan_container_block(tree, document) {
     tree.lower();
     scan_block(tree, document);
   } else if !scan_leaf_block(tree, document) {
-    let (mut line_size, _) = scan_line(&bytes);
+    let (mut line_size, _) = one_line(&bytes);
     let start = document.start();
     let offset = document.offset();
     if is_cur_paragraph(tree) {
@@ -84,10 +84,10 @@ fn scan_leaf_block<'source>(
   let spaces = offset - start;
   let mut size = 0;
 
-  if let Some(block_size) = scan_blank_line(source) {
+  if let Some(block_size) = blank_line(bytes) {
     size += block_size;
     block = Some(Token::BlankLine);
-  } else if let Some(block_size) = scan_thematic_break(source) {
+  } else if let Some(block_size) = thematic_break(bytes) {
     size += block_size;
     block = Some(Token::ThematicBreak);
   }
@@ -102,9 +102,9 @@ fn scan_leaf_block<'source>(
     return true;
   }
 
-  if let Some((start_size, level)) = scan_atx_heading_start(source) {
+  if let Some((start_size, level)) = atx_heading_start(bytes) {
     size += start_size;
-    let (line_size, raw_size) = scan_line(&bytes[size..]);
+    let (line_size, raw_size) = one_line(&bytes[size..]);
     let end = offset + size + line_size;
     tree.append(Item {
       start,
@@ -123,7 +123,7 @@ fn scan_leaf_block<'source>(
     document.forward_to(end);
     return true;
   }
-  if let Some(size) = scan_setext_heading(source) {
+  if let Some(size) = setext_heading(bytes) {
     if let Some(cur) = tree.cur() {
       if let Token::Paragraph = tree[cur].item.value {
         let level = if bytes[0] == b'=' { 1 } else { 2 };
@@ -136,7 +136,7 @@ fn scan_leaf_block<'source>(
     }
     return false;
   }
-  if let Some((open_size, repeat, meta)) = scan_open_fenced_code(source) {
+  if let Some((open_size, repeat, meta)) = open_fenced_code(bytes) {
     size += open_size;
     let token = Token::FencedCode;
     let open_ch = bytes[0];
@@ -153,13 +153,13 @@ fn scan_leaf_block<'source>(
       }
       if let Some(container_size) = interrupt_container(&bytes[size..], &source[size..], tree) {
         size += container_size;
-        if let Some((close_size, close_repeat)) = scan_close_fenced_code(&source[size..]) {
+        if let Some((close_size, close_repeat)) = close_fenced_code(&bytes[size..]) {
           if bytes[size] == open_ch && repeat == close_repeat {
             size += close_size;
             break;
           }
         }
-        let (line_size, _) = scan_line(&bytes[size..]);
+        let (line_size, _) = one_line(&bytes[size..]);
         tree.lower();
         let code_start = offset + size;
         size += line_size;
@@ -190,12 +190,12 @@ fn scan_container_block<'source>(
   let offset = document.offset();
   let bytes = document.bytes();
   let source = document.source();
-  let spaces = offset - start;
-  if spaces > 3 {
+  let spaces_size = offset - start;
+  if spaces_size > 3 {
     return false;
   }
 
-  if let Some((size, level)) = scan_block_quote(source) {
+  if let Some((size, level)) = block_quote(bytes) {
     tree.append(Item {
       start,
       end: size + offset,
@@ -205,14 +205,14 @@ fn scan_container_block<'source>(
     return true;
   }
 
-  if let Some((size, marker_size)) = scan_list_item_start(source) {
+  if let Some((size, marker_size)) = list_item_start(bytes) {
     let order_index = if marker_size > 1 {
       &source[..marker_size - 1]
     } else {
       ""
     };
     // TODO
-    let ending_indent = scan_spaces(&bytes[size..]);
+    let (_, ending_indent) = spaces(&bytes[size..]);
     let ch = bytes[marker_size - 1];
     if let Some(cur) = tree.cur() {
       if let Token::List(list_ch, _, __) = tree[cur].item.value {
@@ -221,7 +221,7 @@ fn scan_container_block<'source>(
           tree.append(Item {
             start,
             end: start + size + ending_indent,
-            value: Token::ListItem(spaces + size + ending_indent),
+            value: Token::ListItem(spaces_size + size + ending_indent),
           });
           document.forward_to(start + size + ending_indent);
           return true;
@@ -238,7 +238,7 @@ fn scan_container_block<'source>(
     tree.append(Item {
       start,
       end: start + size + ending_indent,
-      value: Token::ListItem(spaces + size + ending_indent),
+      value: Token::ListItem(spaces_size + size + ending_indent),
     });
     document.forward_to(start + size + ending_indent);
     return true;

@@ -1,5 +1,5 @@
+use crate::input::*;
 use crate::lexer::*;
-use crate::scan::*;
 use crate::token::*;
 use crate::tree::*;
 
@@ -9,18 +9,16 @@ pub(crate) fn continue_paragraph<'source>(
   tree: &mut Tree<Item<Token<'source>>>,
 ) -> Option<usize> {
   if let Some(size) = interrupt_container(bytes, source, tree) {
-    let spaces = scan_spaces(bytes);
+    let (bytes, spaces) = spaces(&bytes[size..]);
     if spaces >= 4 {
       return None;
     }
-    let source = &source[size + spaces..];
-    let bytes = &bytes[size + spaces..];
-    if scan_atx_heading_start(source).is_none()
-      && scan_eol(bytes).is_none()
+    if atx_heading_start(bytes).is_none()
+      && eol(bytes).is_none()
       && bytes[0] != b'>'
-      && scan_thematic_break(source).is_none()
-      && scan_setext_heading(source).is_none()
-      && scan_open_fenced_code(source).is_none()
+      && thematic_break(bytes).is_none()
+      && setext_heading(bytes).is_none()
+      && open_fenced_code(bytes).is_none()
     {
       return Some(size);
     }
@@ -40,32 +38,32 @@ pub(crate) fn continue_container<'source>(
   let len = spine.len();
   let mut level = 1;
   if len > level {
-    let mut spaces = scan_spaces(&bytes[offset..]);
-    offset += spaces;
+    let (_, mut spaces_size) = spaces(&bytes[offset..]);
+    offset += spaces_size;
     while level < len {
       let id = spine[level];
       if let Token::BlockQuote(level) = tree[id].item.value {
-        if spaces >= 4 {
+        if spaces_size >= 4 {
           return (size, level);
-        } else if let Some((quote_size, quote_level)) = scan_block_quote(&source[size..]) {
+        } else if let Some((quote_size, quote_level)) = block_quote(&bytes[size..]) {
           if level == quote_level {
-            spaces = 0;
+            spaces_size = 0;
             offset += quote_size;
             size = offset;
-            spaces = scan_spaces(&bytes[size..]);
-            offset += spaces;
+            spaces_size = spaces(&bytes[size..]).1;
+            offset += spaces_size;
           }
         }
         return (size, level);
       } else if let Token::List(_, __, ___) = tree[id].item.value {
         let last_child = tree[id].last_child.unwrap();
         if let Token::ListItem(indent) = tree[last_child].item.value {
-          if spaces >= indent {
-            spaces -= indent;
-            size = offset - spaces;
+          if spaces_size >= indent {
+            spaces_size -= indent;
+            size = offset - spaces_size;
             level += 1;
           } else {
-            return (size - spaces, level);
+            return (size - spaces_size, level);
           }
         }
       }

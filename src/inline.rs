@@ -124,6 +124,7 @@ pub(crate) fn parse_block_to_inlines<'source>(
             return LoopInstruction::Move(code_end - offset);
           }
         }
+        return LoopInstruction::None;
       } else if end - start == 1 {
         let byte = bytes[raw_start + start];
         match byte {

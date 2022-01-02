@@ -9,6 +9,7 @@ mod byte;
 mod codegen;
 mod document;
 mod inline;
+mod input;
 mod interrupt;
 mod jsx;
 #[cfg(test)]
