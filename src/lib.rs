@@ -5,7 +5,7 @@ extern crate lazy_static;
 use wasm_bindgen::prelude::*;
 
 mod block;
-mod byte;
+// mod byte;
 mod codegen;
 mod document;
 mod inline;
@@ -17,11 +17,8 @@ mod jsx_test;
 mod lexer;
 mod module;
 mod parse;
-mod punctuation;
 mod raw;
-mod scan;
 mod token;
-mod tree;
 use crate::block::*;
 use crate::codegen::*;
 

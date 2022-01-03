@@ -1,21 +1,18 @@
 #[cfg(test)]
 use serde::Serialize;
+
 #[derive(Eq, PartialEq, Debug)]
 #[cfg_attr(test, derive(Serialize))]
-pub struct Item<T> {
-  pub start: usize,
-  pub end: usize,
+pub struct Token<T> {
+  pub span: Span,
   pub value: T,
 }
 
-impl<T: Default> Default for Item<T> {
-  fn default() -> Self {
-    Item {
-      start: 0,
-      end: 0,
-      value: <T>::default(),
-    }
-  }
+#[derive(Eq, PartialEq, Debug)]
+#[cfg_attr(test, derive(Serialize))]
+pub struct Span {
+  pub start: usize,
+  pub end: usize,
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -56,16 +53,6 @@ impl HeadingLevel {
 
 #[derive(Eq, PartialEq, Debug)]
 #[cfg_attr(test, derive(Serialize))]
-pub struct FencedCode<'source> {
-  pub language: &'source str,
-  pub meta: &'source str,
-  // ` or ~
-  pub keyword: u8,
-  pub keyword_size: usize,
-}
-
-#[derive(Eq, PartialEq, Debug)]
-#[cfg_attr(test, derive(Serialize))]
 pub struct LinkDefinition<'source> {
   pub label: &'source str,
   pub url: &'source str,
@@ -82,53 +69,73 @@ pub enum Align {
 
 #[derive(Eq, PartialEq, Debug)]
 #[cfg_attr(test, derive(Serialize))]
-pub enum Token<'source> {
-  Raw(&'source str),
-  Root,
-  Paragraph,
-  ATXHeading(HeadingLevel),
-  SetextHeading(HeadingLevel),
-  IndentedCode(usize),
-  ThematicBreak,
-  Code(&'source str),
+pub enum BlockToken {
+  Paragraph {
+    raws: Vec<Span>,
+  },
+  ATXHeading {
+    raws: Vec<Span>,
+    level: HeadingLevel,
+  },
+  SetextHeading {
+    raws: Vec<Span>,
+    level: HeadingLevel,
+  },
+  IndentedCode,
   BlankLine,
-  BlockQuote(usize),
-  FencedCode,
-  List(u8, bool, &'source str), // list character, is_tight, ordered index
-  ListItem(usize),              // indent
-  LinkDefinition,
-  Table,
-  TableHead,
-  TableCell(&'source str, bool, bool),
-  TableAlignment,
-  TableAlign(Align),
-  TableRow,
+  ThematicBreak,
+  BlockQuote {
+    blocks: Vec<Token<BlockToken>>,
+    level: usize,
+  },
+  FencedCode {
+    meta_span: Span,
+    codes: Vec<Span>,
+  },
+  List {
+    ch: u8,
+    is_tight: bool,
+    order_span: Span,
+    blocks: Vec<Token<BlockToken>>,
+  },
+  ListItem {
+    indent: usize,
+    blocks: Vec<Token<BlockToken>>,
+  },
+  // LinkDefinition,
+  // Table,
+  // TableHead,
+  // TableCell(&'source str, bool, bool),
+  // TableAlignment,
+  // TableAlign(Align),
+  // TableRow,
 }
 
-impl<'source> Default for Token<'source> {
-  fn default() -> Self {
-    Token::Root
-  }
-}
-
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 #[cfg_attr(test, derive(Serialize))]
-pub enum InlineToken<'source> {
-  Root,
-  Text(&'source str),
+pub enum InlineToken {
+  Text,
   MaybeLinkStart,
-  // keyword, repeat, can open, can close
-  MaybeEmphasis(u8, usize, bool, bool),
-  // keyword, repeat
-  EmphasisStart(u8, usize),
-  EmphasisEnd(u8, usize),
+  MaybeEmphasis {
+    keyword: u8,
+    repeat: usize,
+    can_open: bool,
+    can_close: bool,
+  },
+  EmphasisStart {
+    keyword: u8,
+    repeat: usize,
+  },
+  EmphasisEnd {
+    keyword: u8,
+    repeat: usize,
+  },
   InlineCodeStart,
   InlineCodeEnd,
   Code,
 }
 
-impl<'source> Default for InlineToken<'source> {
-  fn default() -> Self {
-    InlineToken::Root
-  }
+pub struct AST {
+  pub span: Span,
+  pub blocks: Vec<Token<BlockToken>>,
 }

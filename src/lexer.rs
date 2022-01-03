@@ -1,5 +1,4 @@
 use crate::input::*;
-use crate::scan::*;
 // size, repeat
 pub fn atx_heading_start(bytes: &[u8]) -> Option<(usize, usize)> {
   let (bytes, repeat) = ch_repeat_min_max(bytes, b'#', 1, 6)?;
@@ -18,7 +17,6 @@ pub fn open_fenced_code(bytes: &[u8]) -> Option<(usize, usize, usize)> {
     let (size, meta_size) = one_line(bytes);
     return Some((repeat + size, repeat, meta_size));
   }
-  None
 }
 
 pub fn close_fenced_code(bytes: &[u8]) -> Option<(usize, usize)> {
@@ -33,13 +31,18 @@ pub fn close_fenced_code(bytes: &[u8]) -> Option<(usize, usize)> {
 pub fn block_quote(bytes: &[u8]) -> Option<(usize, usize)> {
   let mut level = 0;
   let mut input = bytes;
+  let mut spaces_size = 0;
   loop {
     if let Some((bytes)) = tag(input, b">") {
       level += 1;
       input = bytes;
-      if let Some((bytes, _)) = ch_repeat_max(input, b' ', 4) {
+      if let Some((bytes, size)) = ch_repeat_max(input, b' ', 4) {
+        spaces_size = size;
         input = bytes;
       } else {
+        if level > 0 {
+          return Some((bytes.len() - input.len() + 1, level));
+        }
         break;
       }
     } else {
@@ -47,23 +50,38 @@ pub fn block_quote(bytes: &[u8]) -> Option<(usize, usize)> {
     }
   }
   if level > 0 {
-    Some((bytes.len() - input.len(), level))
+    Some((
+      bytes.len() - input.len() - if spaces_size > 0 { spaces_size - 1 } else { 0 },
+      level,
+    ))
   } else {
     None
   }
 }
 
-// size, marker size
-pub fn list_item_start(bytes: &[u8]) -> Option<(usize, usize)> {
+// size, marker size, ending indent
+pub fn list_item_start(bytes: &[u8]) -> Option<(usize, usize, usize)> {
   if bytes.len() > 0 {
     let ch = bytes[0];
     if ch == b'-' || ch == b'*' || ch == b'+' {
-      return Some((eol_or_space(&bytes[1..])?.1 + 1, 1));
+      eol_or_space(&bytes[1..])?;
+      let (_, spaces) = spaces0(&bytes[1..]);
+      if spaces >= 5 {
+        return Some((1 + 1, 1, 1));
+      } else {
+        return Some((1 + spaces, 1, spaces));
+      }
     } else {
       let (bytes, size) = take_while(bytes, |ch| ch > b'0' && ch < b'9');
       if (size > 0 && size < 10) {
         if single_char(bytes, b'.').is_some() || single_char(bytes, b')').is_some() {
-          return Some((eol_or_space(&bytes[1..])?.1 + size + 1, size + 1));
+          eol_or_space(&bytes[1..])?;
+          let (_, spaces) = spaces0(&bytes[1..]);
+          if spaces >= 5 {
+            return Some((size + 1 + 1, size + 1, 1));
+          } else {
+            return Some((size + 1 + spaces, size + 1, spaces));
+          }
         }
       }
     }
@@ -93,7 +111,7 @@ pub fn thematic_break(bytes: &[u8]) -> Option<usize> {
       loop {
         let bytes = single_char(input, ch)?;
         repeat += 1;
-        let (bytes, _) = spaces(bytes);
+        let (bytes, _) = spaces0(bytes);
         if let Some((bytes, _)) = eol(bytes) {
           if repeat >= 3 {
             return Some(len - bytes.len());

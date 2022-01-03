@@ -76,8 +76,8 @@ pub fn ch_repeat_min_max(bytes: &[u8], ch: u8, min: usize, max: usize) -> Option
 pub fn eol_or_space(bytes: &[u8]) -> Option<(&[u8], usize)> {
   if bytes.len() > 0 {
     match bytes[0] {
-      b'\r' => Some((&bytes[2..], 2)),
-      b'\n' | b' ' => Some((&bytes[1..], 1)),
+      b'\r' | b'\n' => Some((bytes, 0)),
+      b' ' => Some((&bytes[1..], 1)),
       _ => None,
     }
   } else {
@@ -102,7 +102,7 @@ pub fn spaces_eol(bytes: &[u8]) -> Option<(&[u8], usize)> {
   None
 }
 
-pub fn spaces(bytes: &[u8]) -> (&[u8], usize) {
+pub fn spaces0(bytes: &[u8]) -> (&[u8], usize) {
   take_while(bytes, |c| c == b' ')
 }
 

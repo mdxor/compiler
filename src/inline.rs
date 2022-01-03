@@ -1,9 +1,7 @@
-use crate::byte::*;
 use crate::document::*;
+use crate::input::*;
 use crate::raw::*;
-use crate::scan::*;
 use crate::token::*;
-use crate::tree::*;
 lazy_static! {
   static ref SPECIAL_BYTES: [bool; 256] = {
     let mut bytes = [false; 256];
@@ -15,60 +13,56 @@ lazy_static! {
   };
 }
 
-fn is_left_flanking_delimiter(raw: &str, start: usize, end: usize) -> bool {
-  let bytes = raw.as_bytes();
+fn is_left_flanking_delimiter(bytes: &[u8], start: usize, end: usize) -> bool {
   let len = bytes.len();
-  if end >= len || is_ascii_whitespace(bytes[end]) {
+  if end >= len || bytes[end].is_ascii_whitespace() {
     return false;
   }
-  let next_char = if let Some(c) = raw.chars().nth(end) {
+  let next_byte = if let Some(c) = bytes.get(end + 1) {
     c
   } else {
     return true;
   };
-  if !is_punctuation(next_char)
+  // TODO
+  if !next_byte.is_ascii_punctuation()
     && (start == 0
-      || is_ascii_whitespace(bytes[start - 1])
-      || is_punctuation(raw[..start].chars().last().unwrap()))
+      || bytes[start - 1].is_ascii_whitespace()
+      || bytes[start - 1].is_ascii_punctuation())
   {
     return true;
   }
   return false;
 }
 
-fn is_right_flanking_delimiter(raw: &str, start: usize, end: usize) -> bool {
-  let bytes = raw.as_bytes();
+fn is_right_flanking_delimiter(bytes: &[u8], start: usize, end: usize) -> bool {
   let len = bytes.len();
-  if start == 0 || is_ascii_whitespace(bytes[start - 1]) {
+  if start == 0 || bytes[start - 1].is_ascii_whitespace() {
     return false;
   }
-  let prev_char = if let Some(c) = raw.chars().nth(start - 1) {
+  let prev_byte = if let Some(c) = bytes.get(start - 1) {
     c
   } else {
     return true;
   };
-  if !is_punctuation(prev_char)
-    && (end >= len
-      || is_ascii_whitespace(bytes[end])
-      || is_punctuation(raw[end..].chars().next().unwrap()))
+  // TODO
+  if !prev_byte.is_ascii_punctuation()
+    && (end >= len || bytes[end].is_ascii_whitespace() || bytes[end].is_ascii_punctuation())
   {
     return true;
   }
   return false;
 }
 
-pub(crate) fn parse_block_to_inlines<'source>(
-  block_tree: &mut Tree<Item<Token<'source>>>,
+pub(crate) fn parse_raws_to_inlines<'source>(
+  raws: &Vec<Span>,
   document: &mut Document<'source>,
-  block_id: usize,
-) -> Vec<Item<InlineToken<'source>>> {
+) -> Vec<Token<InlineToken>> {
   let bytes = document.bytes;
-  let mut tokens: Vec<Item<InlineToken>> = vec![];
+  let mut tokens: Vec<Token<InlineToken>> = vec![];
   // (start, repeat)
   let mut inline_code_stack: Vec<(usize, usize)> = vec![];
-  iterate_raw(
-    block_tree,
-    block_id,
+  iterate_raws(
+    raws,
     bytes,
     &*SPECIAL_BYTES,
     |raw, raw_start, start, end| {
@@ -77,7 +71,7 @@ pub(crate) fn parse_block_to_inlines<'source>(
         let byte = bytes[offset];
         match byte {
           b'`' => {
-            let repeat = scan_ch_repeat(&bytes[offset..], b'`');
+            let repeat = ch_repeat(&bytes[offset..], b'`').1;
             inline_code_stack.push((offset, repeat));
             return LoopInstruction::Move(repeat);
           }
@@ -87,7 +81,7 @@ pub(crate) fn parse_block_to_inlines<'source>(
         // escaped
         if bytes[offset] == b'\\' {
           if bytes[offset + 1] == b'`' {
-            let repeat = scan_ch_repeat(&bytes[offset + 1..], b'`');
+            let repeat = ch_repeat(&bytes[offset + 1..], b'`').1;
             inline_code_stack.push((offset + 1, repeat));
             return LoopInstruction::Move(repeat + 1);
           }
@@ -99,27 +93,30 @@ pub(crate) fn parse_block_to_inlines<'source>(
 
   let mut code_end: Option<usize> = None;
 
-  iterate_raw(
-    block_tree,
-    block_id,
+  iterate_raws(
+    raws,
     bytes,
     &*SPECIAL_BYTES,
-    |raw, raw_start, start, end| {
+    |raw_bytes, raw_start, start, end| {
       let offset = raw_start + start;
       if end == start && start == 0 {
         if let Some(code_end) = code_end {
-          if code_end >= raw_start + raw.len() {
-            tokens.push(Item {
-              start: offset,
-              end: offset + raw.len(),
+          if code_end >= raw_start + raw_bytes.len() {
+            tokens.push(Token {
               value: InlineToken::Code,
+              span: Span {
+                start: offset,
+                end: offset + raw_bytes.len(),
+              },
             });
-            return LoopInstruction::Move(raw.len() - start);
+            return LoopInstruction::Move(raw_bytes.len() - start);
           } else {
-            tokens.push(Item {
-              start: offset,
-              end: code_end,
+            tokens.push(Token {
               value: InlineToken::Code,
+              span: Span {
+                start: offset,
+                end: code_end,
+              },
             });
             return LoopInstruction::Move(code_end - offset);
           }
@@ -129,28 +126,42 @@ pub(crate) fn parse_block_to_inlines<'source>(
         let byte = bytes[raw_start + start];
         match byte {
           b'*' | b'_' | b'~' => {
-            let repeat = scan_ch_repeat(&bytes[offset..], byte);
-            let can_open = is_left_flanking_delimiter(raw, start, start + repeat);
-            let can_close = is_right_flanking_delimiter(raw, start, start + repeat);
+            let repeat = ch_repeat(&bytes[offset..], byte).1;
+            let can_open = is_left_flanking_delimiter(raw_bytes, start, start + repeat);
+            let can_close = is_right_flanking_delimiter(raw_bytes, start, start + repeat);
             if !can_open && !can_close {
               return LoopInstruction::Text(repeat);
             }
             if byte == b'~' {
               if repeat == 2 {
-                tokens.push(Item {
-                  start: offset,
-                  end: offset + repeat,
-                  value: InlineToken::MaybeEmphasis(byte, repeat, can_open, can_close),
+                tokens.push(Token {
+                  value: InlineToken::MaybeEmphasis {
+                    keyword: byte,
+                    repeat,
+                    can_open,
+                    can_close,
+                  },
+                  span: Span {
+                    start: offset,
+                    end: offset + repeat,
+                  },
                 });
                 return LoopInstruction::Move(repeat);
               } else {
                 return LoopInstruction::Text(repeat);
               }
             }
-            tokens.push(Item {
-              start: offset,
-              end: offset + repeat,
-              value: InlineToken::MaybeEmphasis(byte, repeat, can_open, can_close),
+            tokens.push(Token {
+              value: InlineToken::MaybeEmphasis {
+                keyword: byte,
+                repeat,
+                can_open,
+                can_close,
+              },
+              span: Span {
+                start: offset,
+                end: offset + repeat,
+              },
             });
             return LoopInstruction::Move(repeat);
           }
@@ -163,66 +174,70 @@ pub(crate) fn parse_block_to_inlines<'source>(
           //   return LoopInstruction::None;
           // }
           // b']' => {}
-          b'`' => {
-            let repeat = scan_ch_repeat(&bytes[offset..], b'`');
-            if code_end.is_some() {
-              tokens.push(Item {
-                start: offset,
-                end: offset + repeat,
-                value: InlineToken::InlineCodeEnd,
-              });
-              code_end = None;
-              return LoopInstruction::Move(repeat);
-            }
-            if let Some(index) = inline_code_stack
-              .iter()
-              .position(|(end, re)| *end > offset && *re == repeat)
-            {
-              // TODO:
-              while inline_code_stack.len() > index + 1 {
-                inline_code_stack.pop();
-              }
-              let (end, _) = inline_code_stack.pop().unwrap();
-              tokens.push(Item {
-                start: offset,
-                end: offset + repeat,
-                value: InlineToken::InlineCodeStart,
-              });
-              code_end = Some(end);
-              if end >= raw_start + raw.len() {
-                tokens.push(Item {
-                  start: offset + repeat,
-                  end: raw.len() - start,
-                  value: InlineToken::Code,
-                });
-                return LoopInstruction::Move(raw.len() - start);
-              } else {
-                tokens.push(Item {
-                  start: offset + repeat,
-                  end: end,
-                  value: InlineToken::Code,
-                });
-                return LoopInstruction::Move(end - offset);
-              }
-            }
-          }
+          // b'`' => {
+          //   let repeat = scan_ch_repeat(&bytes[offset..], b'`');
+          //   if code_end.is_some() {
+          //     tokens.push(Item {
+          //       start: offset,
+          //       end: offset + repeat,
+          //       value: InlineToken::InlineCodeEnd,
+          //     });
+          //     code_end = None;
+          //     return LoopInstruction::Move(repeat);
+          //   }
+          //   if let Some(index) = inline_code_stack
+          //     .iter()
+          //     .position(|(end, re)| *end > offset && *re == repeat)
+          //   {
+          //     // TODO:
+          //     while inline_code_stack.len() > index + 1 {
+          //       inline_code_stack.pop();
+          //     }
+          //     let (end, _) = inline_code_stack.pop().unwrap();
+          //     tokens.push(Item {
+          //       start: offset,
+          //       end: offset + repeat,
+          //       value: InlineToken::InlineCodeStart,
+          //     });
+          //     code_end = Some(end);
+          //     if end >= raw_start + raw.len() {
+          //       tokens.push(Item {
+          //         start: offset + repeat,
+          //         end: raw.len() - start,
+          //         value: InlineToken::Code,
+          //       });
+          //       return LoopInstruction::Move(raw.len() - start);
+          //     } else {
+          //       tokens.push(Item {
+          //         start: offset + repeat,
+          //         end: end,
+          //         value: InlineToken::Code,
+          //       });
+          //       return LoopInstruction::Move(end - offset);
+          //     }
+          //   }
+          // }
           _ => (),
         }
       } else if end - start == 2 {
         // escaped
         if bytes[offset] == b'\\' {
-          tokens.push(Item {
-            start: offset,
-            end: offset + end - start,
-            value: InlineToken::Text(&raw[start + 1..end]),
+          tokens.push(Token {
+            value: InlineToken::Text,
+            span: Span {
+              start: offset,
+              end: offset + end - start,
+            },
           });
           return LoopInstruction::None;
         }
       }
-      tokens.push(Item {
-        start: offset,
-        end: offset + end - start,
-        value: InlineToken::Text(&raw[start..end]),
+      tokens.push(Token {
+        value: InlineToken::Text,
+        span: Span {
+          start: offset,
+          end: offset + end - start,
+        },
       });
       return LoopInstruction::None;
     },
@@ -232,39 +247,39 @@ pub(crate) fn parse_block_to_inlines<'source>(
   tokens
 }
 
-fn process_tokens<'source>(
-  tokens: &mut Vec<Item<InlineToken<'source>>>,
-  document: &mut Document<'source>,
-) {
+fn process_tokens<'source>(tokens: &mut Vec<Token<InlineToken>>, document: &mut Document<'source>) {
   let source = document.source();
   let mut emphasis_stack: Vec<(u8, usize, usize)> = vec![];
   let mut index = 0;
   let len = tokens.len();
   for index in 0..len {
-    if let InlineToken::MaybeEmphasis(ch, repeat, can_open, can_close) = tokens[index].value {
+    if let InlineToken::MaybeEmphasis {
+      keyword,
+      repeat,
+      can_open,
+      can_close,
+      ..
+    } = tokens[index].value
+    {
       if can_close {
         let em_index = emphasis_stack
           .iter()
-          .position(|(em_ch, em_repeat, _)| ch == *em_ch && repeat == *em_repeat);
+          .position(|(em_ch, em_repeat, _)| keyword == *em_ch && repeat == *em_repeat);
         if let Some(em_index) = em_index {
           while em_index + 1 < emphasis_stack.len() {
             let (.., id) = emphasis_stack.pop().unwrap();
-            let start = tokens[id].start;
-            let end = tokens[id].end;
-            tokens[id].value = InlineToken::Text(&source[start..end]);
+            tokens[id].value = InlineToken::Text;
           }
           let (.., id) = emphasis_stack.pop().unwrap();
-          tokens[id].value = InlineToken::EmphasisStart(ch, repeat);
-          tokens[index].value = InlineToken::EmphasisEnd(ch, repeat);
+          tokens[id].value = InlineToken::EmphasisStart { keyword, repeat };
+          tokens[index].value = InlineToken::EmphasisEnd { keyword, repeat };
           continue;
         }
       }
       if can_open {
-        emphasis_stack.push((ch, repeat, index));
+        emphasis_stack.push((keyword, repeat, index));
       } else {
-        let start = tokens[index].start;
-        let end = tokens[index].end;
-        tokens[index].value = InlineToken::Text(&source[start..end]);
+        tokens[index].value = InlineToken::Text;
       }
     }
   }
