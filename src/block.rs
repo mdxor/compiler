@@ -1,280 +1,345 @@
 use crate::document::*;
 use crate::input::*;
-use crate::interrupt::*;
 use crate::lexer::*;
 use crate::token::*;
 
-pub fn parse_source_to_blocks(source: &str) -> (AST, Document) {
-  let mut document = Document::new(source);
-  let mut ast = AST {
-    blocks: vec![],
-    span: Span {
-      start: 0,
-      end: source.len(),
-    },
-  };
-  while document.start() < document.bytes.len() {
-    let bytes = document.bytes();
-    let (size, mut blocks, mut spine) = continue_container(&mut ast, bytes);
-    blocks.push(Token {
-      value: BlockToken::ThematicBreak,
-      span: Span { start: 0, end: 0 },
-    })
-    // document.forward(size);
-    // scan_block(&mut document, &mut blocks, &mut spine);
-  }
-  (ast, document)
+pub struct BlockParser<'source> {
+  source: &'source str,
+  document: Document<'source>,
+  spine: Vec<ContainerBlock>,
+  last_leaf_end: usize,
 }
+impl<'source> BlockParser<'source> {
+  pub fn new(source: &'source str) -> Self {
+    BlockParser {
+      source,
+      spine: Vec::new(),
+      document: Document::new(source),
+      last_leaf_end: 0,
+    }
+  }
 
-fn scan_block(
-  document: &mut Document,
-  // ast: &AST,
-  blocks: &mut Vec<Token<BlockToken>>,
-  spine: &mut Vec<&Token<BlockToken>>,
-) {
-  let bytes = document.bytes();
-  let source = document.source();
-  let (_, spaces_size) = spaces0(bytes);
-  document.forward_offset(spaces_size);
-  if let Some(container_block) = scan_container_block(document) {
-    blocks.push(container_block);
-    let container_block = blocks.last_mut().unwrap();
-    if let Token {
-      value: BlockToken::BlockQuote {
-        blocks: ref mut quote_blocks,
-        ..
+  pub fn parse(&mut self) -> AST {
+    let mut blocks = self.scan_blocks();
+    AST {
+      blocks,
+      span: Span {
+        start: 0,
+        end: self.source.len(),
       },
-      ..
-    } = container_block
-    {
-      // spine.push(container_block);
-      scan_block(document, quote_blocks, spine);
-    } else if let Token {
-      value: BlockToken::List {
-        blocks: list_blocks,
-        ..
-      },
-      ..
-    } = container_block
-    {
-      // spine.push(&container_block);
-      let list_item = list_blocks.last_mut().unwrap();
-      if let Token {
-        value:
-          BlockToken::ListItem {
-            blocks: ref mut list_item_blocks,
-            ..
+    }
+  }
+
+  fn scan_blocks(&mut self) -> Vec<Token<BlockToken>> {
+    let mut blocks = vec![];
+    let level = self.spine.len();
+    while self.document.start() < self.source.len() {
+      if level != self.spine.len() {
+        break;
+      }
+      let block = self.scan_block();
+      match block {
+        Token {
+          value: BlockToken::Paragraph {
+            raws: mut next_raws,
           },
-        ..
-      } = list_item
-      {
-        // spine.push(list_item);
-        scan_block(document, list_item_blocks, spine);
+          span,
+        } => {
+          let end = span.end;
+          if let Some(Token {
+            value: BlockToken::Paragraph { raws },
+            span,
+          }) = blocks.last_mut()
+          {
+            span.end = end;
+            raws.push(next_raws.pop().unwrap());
+          } else {
+            blocks.push(Token {
+              value: BlockToken::Paragraph { raws: next_raws },
+              span,
+            });
+          }
+          continue;
+        }
+        Token {
+          value: BlockToken::SetextHeading { level, raws },
+          span,
+        } => {
+          let Span { start, end } = span;
+          if let Some(Token {
+            value: BlockToken::Paragraph { .. },
+            ..
+          }) = blocks.last()
+          {
+            if let Some(Token {
+              value: BlockToken::Paragraph { raws },
+              span: p_span,
+            }) = blocks.pop()
+            {
+              blocks.push(Token {
+                value: BlockToken::SetextHeading { level: level, raws },
+                span: Span {
+                  start: p_span.start,
+                  end: end,
+                },
+              });
+            }
+          } else {
+            blocks.push(Token {
+              value: BlockToken::Paragraph {
+                raws: vec![Span { start, end }],
+              },
+              span,
+            });
+          }
+        }
+        _ => {
+          blocks.push(block);
+        }
       }
     }
-  } else if let Some(leaf_block) = scan_leaf_block(document, blocks) {
-    blocks.push(leaf_block);
-    // TODO
-  } else {
-    let (mut line_size, _) = one_line(&bytes);
-    let start = document.start();
-    let offset = document.offset();
-    let end = offset + line_size;
-    let mut paragraph = blocks.last_mut().unwrap();
-    if let Token {
-      value: BlockToken::Paragraph { ref mut raws },
-      ref mut span,
-    } = paragraph
-    {
-      raws.push(Span { start, end });
-      span.end = end;
-    } else {
-      blocks.push(Token {
-        value: BlockToken::Paragraph {
-          raws: vec![Span { start, end }],
-        },
-        span: Span { start, end },
-      });
-    }
-    document.forward_to(end);
-  }
-}
-
-fn scan_leaf_block<'source>(
-  document: &mut Document<'source>,
-  // ast: &AST,
-  blocks: &mut Vec<Token<BlockToken>>,
-) -> Option<Token<BlockToken>> {
-  let bytes = document.bytes();
-  let start = document.start();
-  let offset = document.offset();
-  let spaces = offset - start;
-
-  if let Some(size) = blank_line(bytes) {
-    let end = offset + size;
-    document.forward_to(end);
-    return Some(Token {
-      value: BlockToken::BlankLine,
-      span: Span { start, end },
-    });
-  } else if let Some(size) = thematic_break(bytes) {
-    let end = offset + size;
-    document.forward_to(end);
-    return Some(Token {
-      value: BlockToken::ThematicBreak,
-      span: Span { start, end },
-    });
+    blocks
   }
 
-  if let Some((start_size, level)) = atx_heading_start(bytes) {
-    let (line_size, raw_size) = one_line(bytes);
-    let end = offset + start_size + line_size;
-    document.forward_to(end);
-    return Some(Token {
-      value: BlockToken::ATXHeading {
-        level: HeadingLevel::new(level).unwrap(),
-        raws: vec![Span {
-          start: offset + start_size,
-          end: offset + start_size + raw_size,
-        }],
-      },
-      span: Span { start, end },
-    });
-  }
-  if let Some(size) = setext_heading(bytes) {
-    if let Some(Token {
-      value: BlockToken::Paragraph { .. },
-      ..
-    }) = blocks.last()
-    {
-      if let Token {
-        value: BlockToken::Paragraph { raws },
-        span,
-      } = blocks.pop().unwrap()
-      {
-        let level = if bytes[0] == b'=' { 1 } else { 2 };
-        let end = offset + size;
-        document.forward_to(end);
-        return Some(Token {
-          value: BlockToken::SetextHeading {
-            level: HeadingLevel::new(level).unwrap(),
-            raws,
+  // TODO: indent
+  fn scan_list_items(&mut self, ch: u8) -> Vec<Token<BlockToken>> {
+    let mut blocks = vec![];
+    let level = self.spine.len();
+    while self.document.start() < self.source.len() {
+      if level != self.spine.len() {
+        break;
+      }
+      let spaces = self.document.spaces0();
+      let bytes = self.document.bytes();
+      if let Some((size, marker_size, end_indent)) = list_item_start(bytes) {
+        if bytes[marker_size - 1] != ch {
+          break;
+        }
+        let start_indent = self.document.spaces();
+        let start = self.document.start();
+        self.document.forward(size);
+        let indent = start_indent + marker_size + end_indent;
+        self.spine.push(ContainerBlock::ListItem(indent));
+
+        let item_blocks = self.scan_blocks();
+        blocks.push(Token {
+          value: BlockToken::ListItem {
+            blocks: item_blocks,
+            indent: start_indent + marker_size + end_indent,
           },
           span: Span {
-            start: span.start,
-            end,
+            start,
+            end: self.last_leaf_end,
           },
         });
       }
+      break;
     }
-    return None;
+    blocks
   }
-  if let Some((open_size, repeat, meta)) = open_fenced_code(bytes) {
-    let mut size = open_size;
-    let open_ch = bytes[0];
 
-    let meta_span = Span {
-      start: offset + repeat,
-      end: offset + repeat + meta,
-    };
-    let mut codes: Vec<Span> = vec![];
-    loop {
-      if size >= bytes.len() {
-        break;
-      }
-      // if let Some(container_size) = interrupt_container(ast, &bytes[size..]) {
-      //   size += container_size;
-      //   if let Some((close_size, close_repeat)) = close_fenced_code(&bytes[size..]) {
-      //     if bytes[size] == open_ch && repeat == close_repeat {
-      //       size += close_size;
-      //       break;
-      //     }
-      //   }
-      //   let (line_size, _) = one_line(&bytes[size..]);
-      //   let code_start = offset + size;
-      //   size += line_size;
-      //   let code_end = offset + size;
-      //   codes.push(Span {
-      //     start: code_start,
-      //     end: code_end,
-      //   });
-      // } else {
-      //   break;
-      // }
+  fn scan_block(&mut self) -> Token<BlockToken> {
+    self.document.spaces0();
+    if let Some(block) = self.scan_blank_line() {
+      self.finish_leaf_block();
+      return block;
     }
-    let end = offset + size;
-    return Some(Token {
-      value: BlockToken::FencedCode { meta_span, codes },
-      span: Span { start, end },
-    });
-  }
-  None
-}
-
-fn scan_container_block<'source>(document: &mut Document<'source>) -> Option<Token<BlockToken>> {
-  let start = document.start();
-  let offset = document.offset();
-  let bytes = document.bytes();
-  let source = document.source();
-  let spaces = offset - start;
-  if spaces >= 4 {
-    return None;
+    if let Some(block) = self.scan_container_block() {
+      return block;
+    }
+    let block = self.scan_leaf_block();
+    self.finish_leaf_block();
+    block
   }
 
-  if let Some((size, level)) = block_quote(bytes) {
-    document.forward_to(size + offset);
-    return Some(Token {
-      value: BlockToken::BlockQuote {
-        blocks: vec![],
-        level,
-      },
+  fn scan_blank_line(&mut self) -> Option<Token<BlockToken>> {
+    let (_, eol_size) = eol(self.document.bytes())?;
+    Some(Token {
+      value: BlockToken::BlankLine,
       span: Span {
-        start,
-        end: offset + size,
+        start: self.document.start(),
+        end: self.document.forward(eol_size),
       },
-    });
+    })
   }
 
-  if let Some((size, marker_size, end_indent)) = list_item_start(bytes) {
-    let order_span = if marker_size > 1 {
-      Span {
-        start: offset,
-        end: offset,
-      }
-    } else {
-      Span {
-        start: offset,
-        end: offset + marker_size - 1,
-      }
-    };
-    let ch = bytes[marker_size - 1];
-    let end = start + size + end_indent;
-    document.forward_to(end);
-    return Some(Token {
-      value: BlockToken::List {
-        ch,
-        is_tight: false,
-        order_span,
-        blocks: vec![Token {
-          value: BlockToken::ListItem {
-            indent: spaces + marker_size + end_indent,
-            blocks: vec![],
-          },
-          span: Span { start, end },
-        }],
+  fn scan_fenced_code(&mut self) -> Token<BlockToken> {
+    Token {
+      value: BlockToken::Paragraph { raws: vec![] },
+      span: Span { start: 0, end: 0 },
+    }
+  }
+
+  fn scan_indented_code(&mut self) -> Token<BlockToken> {
+    Token {
+      value: BlockToken::Paragraph { raws: vec![] },
+      span: Span { start: 0, end: 0 },
+    }
+  }
+
+  // list and block quote
+  fn scan_container_block(&mut self) -> Option<Token<BlockToken>> {
+    let bytes = self.document.bytes();
+    let start = self.document.start();
+    if let Some((size, level)) = block_quote(bytes) {
+      self.document.forward(size);
+      self.spine.push(ContainerBlock::BlockQuote(level));
+      let blocks = self.scan_blocks();
+      return Some(Token {
+        value: BlockToken::BlockQuote { blocks, level },
+        span: Span {
+          start,
+          end: self.last_leaf_end,
+        },
+      });
+    } else if let Some((size, marker_size, end_indent)) = list_item_start(bytes) {
+      let ch = bytes[marker_size - 1];
+      let order_span = Span {
+        start,
+        end: start + marker_size - 1,
+      };
+      self.spine.push(ContainerBlock::List(ch));
+      let mut blocks = self.scan_list_items(ch);
+      return Some(Token {
+        value: BlockToken::List {
+          blocks,
+          ch,
+          order_span,
+          is_tight: false,
+        },
+        span: Span {
+          start,
+          end: self.last_leaf_end,
+        },
+      });
+    }
+    None
+  }
+
+  fn scan_leaf_block(&mut self) -> Token<BlockToken> {
+    let bytes = self.document.bytes();
+    let start = self.document.start();
+    if let Some(size) = thematic_break(bytes) {
+      return Token {
+        value: BlockToken::ThematicBreak,
+        span: Span {
+          start,
+          end: self.document.forward(size),
+        },
+      };
+    }
+    if let Some((start_size, level)) = atx_heading_start(bytes) {
+      let (line_size, _) = one_line(bytes);
+      let end = self.document.forward(start_size + line_size);
+      return Token {
+        value: BlockToken::ATXHeading {
+          level: HeadingLevel::new(level).unwrap(),
+          raws: vec![Span {
+            start: start + line_size,
+            end,
+          }],
+        },
+        span: Span { start, end },
+      };
+    }
+    if let Some((size)) = setext_heading(bytes) {
+      let level = if bytes[0] == b'=' { 1 } else { 2 };
+      let end = self.document.forward(size);
+      return Token {
+        value: BlockToken::SetextHeading {
+          level: HeadingLevel::new(level).unwrap(),
+          raws: vec![],
+        },
+        span: Span { start, end },
+      };
+    }
+    // TODO: lind definition, table, jsx, fenced code, indented code
+    let (line_size, _) = one_line(bytes);
+    let end = self.document.forward(line_size);
+    return Token {
+      value: BlockToken::Paragraph {
+        raws: vec![Span { start, end }],
       },
       span: Span { start, end },
-    });
+    };
   }
-  None
-}
 
-// #[test]
-// fn test_parse_block() {
-//   let source = r#"
-// # ti`tle`
-// this is a ~~paragraph~~
-// > 123
-// "#;
-//   insta::assert_yaml_snapshot!(parse_source_to_blocks(source).0);
-// }
+  fn finish_leaf_block(&mut self) {
+    self.last_leaf_end = self.document.start();
+    let (size, level) = self.continue_container();
+    self.document.forward(size);
+    while level < self.spine.len() {
+      self.spine.pop();
+    }
+  }
+
+  fn continue_container(&mut self) -> (usize, usize) {
+    let mut spine_level = 0;
+    let mut size = 0;
+    let mut offset = 0;
+    let (bytes, mut spaces) = spaces0(self.document.bytes());
+    offset = spaces;
+    while spine_level < self.spine.len() {
+      let container_block = &self.spine[spine_level];
+      if let ContainerBlock::BlockQuote(level) = container_block {
+        if spaces < 4 {
+          if let Some((quote_size, quote_level)) = block_quote(&bytes[offset..]) {
+            if *level == quote_level {
+              offset += quote_size;
+              size = offset;
+              spaces = spaces0(&bytes[size..]).1;
+              offset += spaces;
+              spine_level += 1;
+              continue;
+            }
+          }
+        }
+      } else if let ContainerBlock::List(ch) = container_block {
+        if let Some(ContainerBlock::ListItem(indent)) = self.spine.get(spine_level + 1) {
+          if spaces >= *indent {
+            size = offset - (size - *indent);
+            spine_level += 2;
+            continue;
+          }
+        }
+        if let Some((_, marker_size, end_indent)) = list_item_start(&bytes[offset..]) {
+          if *ch == bytes[size + marker_size - 1] {
+            spine_level += 1;
+          }
+        }
+      }
+      break;
+    }
+    (size, spine_level)
+  }
+
+  // table, link def
+  fn interrupt_paragraph_like(&mut self) -> Option<usize> {
+    let (size, level) = self.continue_container();
+    if level == self.spine.len() {
+      self.document.reset_spaces();
+      if !self.interrupt_paragraph(size) {
+        return Some(size);
+      }
+    }
+    None
+  }
+
+  fn interrupt_paragraph(&mut self, offset: usize) -> bool {
+    let bytes = &self.document.bytes()[offset..];
+    let (bytes, spaces) = spaces0(bytes);
+    if spaces >= 4 {
+      return true;
+    }
+    if atx_heading_start(bytes).is_none()
+      && eol(bytes).is_none()
+      && bytes[0] != b'>'
+      && thematic_break(bytes).is_none()
+      && setext_heading(bytes).is_none()
+      && open_fenced_code(bytes).is_none()
+    {
+      return false;
+    }
+    true
+  }
+}

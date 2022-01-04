@@ -139,3 +139,11 @@ pub struct AST {
   pub span: Span,
   pub blocks: Vec<Token<BlockToken>>,
 }
+
+#[derive(Eq, PartialEq, Debug, Clone)]
+#[cfg_attr(test, derive(Serialize))]
+pub enum ContainerBlock {
+  BlockQuote(usize),
+  List(u8),
+  ListItem(usize),
+}

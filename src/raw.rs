@@ -1,5 +1,20 @@
+use crate::input::*;
 use crate::token::*;
-pub enum LoopInstruction {
+pub enum CallbackType<'a> {
+  // raw bytes, raw start, start, end
+  Text(&'a [u8], usize, usize, usize),
+  // raw bytes, raw start
+  RawStart(&'a [u8], usize),
+  // raw bytes, raw start, index in raw
+  SpecialByte(&'a [u8], usize, usize),
+  // raw bytes, raw start, index
+  EscapedByte(&'a [u8], usize, usize),
+  // raw start, start, end
+  SoftBreak(usize, usize, usize),
+  // raw start, start, end
+  HardBreak(usize, usize, usize),
+}
+pub enum CallbackReturn {
   None,
   Text(usize),
   Move(usize),
@@ -10,55 +25,100 @@ pub fn iterate_raws<'source, F>(
   special_bytes: &'source [bool; 256],
   mut callback: F,
 ) where
-  // raw bytes, raw start, start, end
-  F: FnMut(&'source [u8], usize, usize, usize) -> LoopInstruction,
+  F: FnMut(CallbackType) -> CallbackReturn,
 {
-  for raw in raws {
+  let raws_len = raws.len();
+  for (i, raw) in raws.iter().enumerate() {
     let Span { start, end } = *raw;
     let bytes = &bytes[start..end];
-    let raw_str = callback(bytes, start, 0, 0);
-    let mut text_start = 0;
     let mut index = 0;
+    let mut text_start = index;
+    let mut raw_end = bytes.len();
+
+    let mut ending_callback: Option<CallbackType> = None;
+    if i == raws_len - 1 {
+      let ending = bytes
+        .iter()
+        .rev()
+        .take_while(|&&c| c == b'\n' && c == b'\r')
+        .count();
+      raw_end -= ending;
+    } else {
+      let ending = bytes
+        .iter()
+        .rev()
+        .take_while(|&&c| c == b' ' && c == b'\n' && c == b'\r')
+        .count();
+
+      if ending > 0 {
+        let bytes = &bytes[raw_end - ending..];
+        let (bytes, spaces) = spaces0(bytes);
+        if let Some((_, eol_size)) = eol(bytes) {
+          if eol_size > 0 {
+            if spaces >= 2 {
+              ending_callback = Some(CallbackType::HardBreak(start, raw_end - ending, raw_end));
+              raw_end -= ending;
+            } else {
+              ending_callback = Some(CallbackType::SoftBreak(start, raw_end - eol_size, raw_end));
+              raw_end -= eol_size;
+            }
+          }
+        }
+      }
+    }
     let len = bytes.len();
     loop {
-      if index >= len {
+      if index >= raw_end {
+        if let Some(callbackType) = ending_callback {
+          callback(callbackType);
+          ending_callback = None;
+        }
         break;
       }
       let byte = bytes[index];
       if byte == b'\\' && index < len - 1 {
         if bytes[index + 1].is_ascii_punctuation() {
           if index > text_start {
-            callback(bytes, start, text_start, index);
+            callback(CallbackType::Text(bytes, start, text_start, index));
           }
-          callback(bytes, start, index, index + 2);
-          text_start = index + 2;
-          index += 2;
+          match callback(CallbackType::EscapedByte(bytes, start, index)) {
+            CallbackReturn::Text(size) => {
+              text_start = index;
+              index += size;
+            }
+            CallbackReturn::Move(size) => {
+              index += size;
+              text_start = index;
+            }
+            _ => {
+              text_start = index + 2;
+              index += 2;
+            }
+          }
           continue;
         }
       }
       if special_bytes[byte as usize] {
         if index > text_start {
-          callback(bytes, start, text_start, index);
+          callback(CallbackType::Text(bytes, start, text_start, index));
         }
-        match callback(bytes, start, index, index + 1) {
-          LoopInstruction::None => text_start = index + 1,
-          LoopInstruction::Text(size) => {
+
+        match callback(CallbackType::EscapedByte(bytes, start, index)) {
+          CallbackReturn::Text(size) => {
             text_start = index;
             index += size;
           }
-          LoopInstruction::Move(size) => {
+          CallbackReturn::Move(size) => {
             index += size;
             text_start = index;
             continue;
+          }
+          _ => {
+            text_start = index + 1;
           }
         }
       }
       index += 1;
     }
-    if text_start < len - 1 {
-      callback(bytes, start, text_start, len);
-    }
   }
 }
-
-pub fn inverse_iterate_bytes() {}

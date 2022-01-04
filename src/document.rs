@@ -1,50 +1,49 @@
+use crate::input::*;
 use crate::token::*;
 pub struct Document<'source> {
-  pub source: &'source str,
   pub bytes: &'source [u8],
-  offset: usize,
+  spaces: usize,
   start: usize,
-  pub link_definitions: Vec<LinkDefinition<'source>>,
 }
 
 impl<'source> Document<'source> {
   pub fn new(source: &'source str) -> Self {
     Self {
-      source,
       bytes: source.as_bytes(),
-      offset: 0,
+      spaces: 0,
       start: 0,
-      link_definitions: vec![],
     }
   }
 
   pub fn bytes(&self) -> &'source [u8] {
-    &self.bytes[self.offset..]
-  }
-
-  pub fn source(&self) -> &'source str {
-    &self.source[self.offset..]
-  }
-
-  pub fn forward(&mut self, size: usize) -> usize {
-    self.offset += size;
-    self.start = self.offset;
-    self.offset
-  }
-
-  pub fn forward_offset(&mut self, size: usize) -> usize {
-    self.offset += size;
-    self.offset
+    &self.bytes[self.start + self.spaces..]
   }
 
   pub fn forward_to(&mut self, size: usize) {
-    self.offset = size;
+    self.spaces = 0;
     self.start = size;
   }
 
-  pub fn offset(&self) -> usize {
-    self.offset
+  pub fn forward(&mut self, size: usize) -> usize {
+    self.start += size + self.spaces;
+    self.spaces = 0;
+    self.start
   }
+
+  pub fn spaces(&self) -> usize {
+    self.spaces
+  }
+
+  pub fn reset_spaces(&mut self) {
+    self.spaces = 0;
+  }
+
+  pub fn spaces0(&mut self) -> usize {
+    let (_, spaces) = spaces0(&self.bytes[self.start..]);
+    self.spaces = spaces;
+    spaces
+  }
+
   pub fn start(&self) -> usize {
     self.start
   }
