@@ -3,8 +3,6 @@ use crate::token::*;
 pub enum CallbackType<'a> {
   // raw bytes, raw start, start, end
   Text(&'a [u8], usize, usize, usize),
-  // raw bytes, raw start
-  RawStart(&'a [u8], usize),
   // raw bytes, raw start, index in raw
   SpecialByte(&'a [u8], usize, usize),
   // raw bytes, raw start, index
@@ -40,14 +38,14 @@ pub fn iterate_raws<'source, F>(
       let ending = bytes
         .iter()
         .rev()
-        .take_while(|&&c| c == b'\n' && c == b'\r')
+        .take_while(|&&c| c == b'\n' || c == b'\r')
         .count();
       raw_end -= ending;
     } else {
       let ending = bytes
         .iter()
         .rev()
-        .take_while(|&&c| c == b' ' && c == b'\n' && c == b'\r')
+        .take_while(|&&c| c == b' ' || c == b'\n' || c == b'\r')
         .count();
 
       if ending > 0 {
@@ -69,6 +67,9 @@ pub fn iterate_raws<'source, F>(
     let len = bytes.len();
     loop {
       if index >= raw_end {
+        if raw_end > text_start {
+          callback(CallbackType::Text(bytes, start, text_start, raw_end));
+        }
         if let Some(callbackType) = ending_callback {
           callback(callbackType);
           ending_callback = None;
@@ -103,7 +104,7 @@ pub fn iterate_raws<'source, F>(
           callback(CallbackType::Text(bytes, start, text_start, index));
         }
 
-        match callback(CallbackType::EscapedByte(bytes, start, index)) {
+        match callback(CallbackType::SpecialByte(bytes, start, index)) {
           CallbackReturn::Text(size) => {
             text_start = index;
             index += size;

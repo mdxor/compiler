@@ -132,6 +132,34 @@ pub fn blank_line(bytes: &[u8]) -> Option<usize> {
   Some(size)
 }
 
+pub fn uri(bytes: &[u8]) -> Option<usize> {
+  let bytes = single_char(bytes, b'<')?;
+  let mut size = 1;
+  if bytes.is_empty() {
+    return None;
+  }
+  if !bytes[0].is_ascii_alphabetic() {
+    return None;
+  }
+  let (bytes, scheme_size) = take_while(bytes, |ch| {
+    ch != b':' && (ch.is_ascii_alphanumeric() || ch == b'+' || ch == b'-' || ch == b'.')
+  });
+  size += scheme_size;
+  if scheme_size < 2 || scheme_size > 32 {
+    return None;
+  }
+  let bytes = single_char(bytes, b':')?;
+  size += 1;
+  let (bytes, follow_size) = take_while(bytes, |ch| match ch {
+    b'<' | b'>' => false,
+    b'\0'..=b' ' => false,
+    _ => true,
+  });
+  single_char(bytes, b'>')?;
+  size += follow_size + 1;
+  Some(size)
+}
+
 // fn import_declaration(input: &[u8]) -> IResult<&[u8], ()> {
 //   let (input, _) = preceded(space0, tag("import"))(input)?;
 //   Ok((input, ()))
