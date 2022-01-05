@@ -113,22 +113,35 @@ pub enum BlockToken {
 
 #[derive(Eq, PartialEq, Debug, Clone)]
 #[cfg_attr(test, derive(Serialize))]
-pub enum InlineToken {
+pub enum MaybeInlineToken {
   Text,
   EscapedText,
-  MaybeLinkStart,
-  MaybeLinkEnd,
-  MaybeEmphasis {
+  LinkStart,
+  LinkEnd,
+  Emphasis {
     ch: u8,
     repeat: usize,
     can_open: bool,
     can_close: bool,
   },
-  MaybeInlineCode {
+  InlineCode {
     repeat: usize,
     can_open: bool,
   },
-  EmphasisStart,
+  Code,
+  SoftBreak,
+  HardBreak,
+  // is email
+  AutoLink(bool),
+}
+
+#[derive(Eq, PartialEq, Debug, Clone)]
+#[cfg_attr(test, derive(Serialize))]
+pub enum InlineToken {
+  Text,
+  EscapedText,
+  Link,
+  EmphasisStart { ch: u8, repeat: usize },
   EmphasisEnd,
   InlineCodeStart,
   InlineCodeEnd,
