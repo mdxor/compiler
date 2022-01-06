@@ -2,6 +2,7 @@ use crate::input::*;
 use crate::lexer::*;
 use crate::raw::*;
 use crate::token::*;
+use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::mem;
 
@@ -50,22 +51,19 @@ pub struct InlineParser<'a> {
   special_bytes: [bool; 256],
   maybe_tokens: VecDeque<Token<MaybeInlineToken>>,
   tokens: Vec<Token<InlineToken>>,
-  // token index, repeat
-  pub close_code_deque: VecDeque<(usize, usize)>,
   pub close_link_deque: VecDeque<usize>,
 }
 
 impl<'a> InlineParser<'a> {
   pub fn new(bytes: &'a [u8]) -> Self {
     let mut special_bytes = [false; 256];
-    let specials = [b'*', b'_', b'~', b'[', b']', b'`', b'<'];
+    let specials = [b'*', b'_', b'~', b'[', b']', b'`', b'<', b'!', b'\r', b'\n'];
     for &byte in &specials {
       special_bytes[byte as usize] = true;
     }
     Self {
       bytes,
       special_bytes,
-      close_code_deque: VecDeque::new(),
       close_link_deque: VecDeque::new(),
       maybe_tokens: VecDeque::new(),
       tokens: vec![],
@@ -80,7 +78,9 @@ impl<'a> InlineParser<'a> {
 
   pub fn parse_raws(&mut self, raws: &Vec<Span>) {
     let mut maybe_tokens: VecDeque<Token<MaybeInlineToken>> = VecDeque::new();
-    let mut close_code_deque = VecDeque::new();
+
+    // repeat, token index
+    let mut code_map: HashMap<usize, usize> = HashMap::new();
     let mut close_link_deque = VecDeque::new();
     iterate_raws(
       raws,
@@ -92,17 +92,31 @@ impl<'a> InlineParser<'a> {
           match byte {
             b'`' => {
               let (_, repeat) = ch_repeat(&raw_bytes[start..], byte);
-              close_code_deque.push_back((maybe_tokens.len(), repeat));
-              maybe_tokens.push_back(Token {
-                value: MaybeInlineToken::InlineCode {
-                  repeat,
-                  can_open: true,
-                },
-                span: Span {
-                  start: raw_start + start,
-                  end: raw_start + start + repeat,
-                },
-              });
+              if let Some(index) = code_map.get(&repeat) {
+                maybe_tokens[*index].value = MaybeInlineToken::InlineCodeStart;
+                let mut index = *index + 1;
+                while index < maybe_tokens.len() {
+                  maybe_tokens[index].value = MaybeInlineToken::Code;
+                  index += 1;
+                }
+                maybe_tokens.push_back(Token {
+                  value: MaybeInlineToken::InlineCodeEnd,
+                  span: Span {
+                    start: raw_start + start,
+                    end: raw_start + start + repeat,
+                  },
+                });
+                code_map.remove(&repeat);
+              } else {
+                code_map.insert(repeat, maybe_tokens.len());
+                maybe_tokens.push_back(Token {
+                  value: MaybeInlineToken::InlineCode,
+                  span: Span {
+                    start: raw_start + start,
+                    end: raw_start + start + repeat,
+                  },
+                });
+              }
               return CallbackReturn::Move(repeat);
             }
             b'*' | b'_' | b'~' => {
@@ -143,6 +157,20 @@ impl<'a> InlineParser<'a> {
               }
               return CallbackReturn::Text(repeat);
             }
+            b'!' => {
+              if let Some(next_byte) = raw_bytes.get(start + 1) {
+                if *next_byte == b'[' {
+                  maybe_tokens.push_back(Token {
+                    value: MaybeInlineToken::LinkStart,
+                    span: Span {
+                      start: raw_start + start,
+                      end: raw_start + start + 2,
+                    },
+                  });
+                  return CallbackReturn::Move(2);
+                }
+              }
+            }
             b'[' => maybe_tokens.push_back(Token {
               value: MaybeInlineToken::LinkStart,
               span: Span {
@@ -174,6 +202,17 @@ impl<'a> InlineParser<'a> {
                 return CallbackReturn::Text(1);
               }
             }
+            b'\r' | b'\n' => {
+              let size = if byte == b'\r' { 2 } else { 1 };
+              maybe_tokens.push_back(Token {
+                value: MaybeInlineToken::LineBreak,
+                span: Span {
+                  start: raw_start + start,
+                  end: raw_start + start + size,
+                },
+              });
+              return CallbackReturn::Move(size);
+            }
             _ => {}
           }
           CallbackReturn::None
@@ -182,18 +221,32 @@ impl<'a> InlineParser<'a> {
           let byte = raw_bytes[start + 1];
           if byte == b'`' {
             let (_, repeat) = ch_repeat(&raw_bytes[start + 1..], byte);
-            close_code_deque.push_back((maybe_tokens.len(), repeat));
-            maybe_tokens.push_back(Token {
-              value: MaybeInlineToken::InlineCode {
-                repeat,
-                can_open: false,
-              },
-              span: Span {
-                start: raw_start + start + 1,
-                end: raw_start + start + 1 + repeat,
-              },
-            });
-            return CallbackReturn::Move(repeat + 1);
+            if let Some(index) = code_map.get(&repeat) {
+              maybe_tokens[*index].value = MaybeInlineToken::InlineCode;
+              let mut index = *index + 1;
+              while index < maybe_tokens.len() {
+                maybe_tokens[index].value = MaybeInlineToken::Code;
+                index += 1;
+              }
+              code_map.remove(&repeat);
+              maybe_tokens.push_back(Token {
+                value: MaybeInlineToken::Text,
+                span: Span {
+                  start: raw_start + start,
+                  end: raw_start + start + 1,
+                },
+              });
+              maybe_tokens.push_back(Token {
+                value: MaybeInlineToken::InlineCodeEnd,
+                span: Span {
+                  start: raw_start + start + 1,
+                  end: raw_start + start + repeat,
+                },
+              });
+              return CallbackReturn::Move(repeat + 1);
+            } else {
+              return CallbackReturn::Text(repeat + 1);
+            }
           } else {
             maybe_tokens.push_back(Token {
               value: MaybeInlineToken::EscapedText,
@@ -215,33 +268,49 @@ impl<'a> InlineParser<'a> {
           });
           CallbackReturn::None
         }
-        CallbackType::HardBreak(raw_start, start, end) => {
-          maybe_tokens.push_back(Token {
-            value: MaybeInlineToken::HardBreak,
-            span: Span {
-              start: raw_start + start,
-              end: raw_start + end,
-            },
-          });
-          CallbackReturn::None
-        }
-        CallbackType::SoftBreak(raw_start, start, end) => {
-          maybe_tokens.push_back(Token {
-            value: MaybeInlineToken::SoftBreak,
-            span: Span {
-              start: raw_start + start,
-              end: raw_start + end,
-            },
-          });
-          CallbackReturn::None
-        }
         _ => CallbackReturn::None,
       },
     );
     self.maybe_tokens = maybe_tokens;
-    self.close_code_deque = close_code_deque;
     self.close_link_deque = close_link_deque;
   }
+
+  fn process_inline_code(&mut self, span: Span) {
+    let mut depth = 1;
+    let start = span.end;
+    let mut end = span.end;
+    self.tokens.push(Token {
+      value: InlineToken::InlineCodeStart,
+      span,
+    });
+    let mut codes = vec![];
+    while depth > 0 {
+      let maybe_token = self.maybe_tokens.pop_front().unwrap();
+      let span = maybe_token.span;
+      let value = maybe_token.value;
+      match value {
+        MaybeInlineToken::InlineCodeStart => depth += 1,
+        MaybeInlineToken::InlineCodeEnd => depth -= 1,
+        _ => {}
+      }
+      if depth != 0 {
+        end = span.end;
+        codes.push(span);
+      } else {
+        self.tokens.push(Token {
+          value: InlineToken::Code(codes),
+          span: Span { start, end },
+        });
+        self.tokens.push(Token {
+          value: InlineToken::InlineCodeEnd,
+          span,
+        });
+        return;
+      }
+    }
+  }
+
+  fn process_link(&mut self) {}
 
   fn process_tokens(&mut self) {
     let len = self.maybe_tokens.len();
@@ -250,7 +319,13 @@ impl<'a> InlineParser<'a> {
       let maybe_token = self.maybe_tokens.pop_front().unwrap();
       match maybe_token {
         Token {
-          value: MaybeInlineToken::InlineCode { repeat, can_open },
+          value: MaybeInlineToken::InlineCodeStart,
+          span,
+        } => {
+          self.process_inline_code(span);
+        }
+        Token {
+          value: MaybeInlineToken::LinkStart,
           span,
         } => {}
         Token {
@@ -266,17 +341,16 @@ impl<'a> InlineParser<'a> {
 
   fn push_text(&mut self, span: Span) {
     if let Some(Token {
-      value: InlineToken::Text,
+      value: InlineToken::Text(texts),
       span: text_span,
     }) = self.tokens.last_mut()
     {
-      if text_span.end == span.start {
-        text_span.end = span.end;
-        return;
-      }
+      text_span.end = span.end;
+      texts.push(span);
+      return;
     }
     self.tokens.push(Token {
-      value: InlineToken::Text,
+      value: InlineToken::Text(vec![span.clone()]),
       span,
     });
   }
@@ -292,7 +366,7 @@ fn test_parse_raws() {
       end: bytes.len(),
     },
   ];
-  let mut inlineParser = InlineParser::new(bytes);
-  let tokens = inlineParser.parse(&raws);
+  let mut inline_parser = InlineParser::new(bytes);
+  let tokens = inline_parser.parse(&raws);
   println!("{:?}", tokens);
 }

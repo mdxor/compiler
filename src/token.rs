@@ -8,7 +8,7 @@ pub struct Token<T> {
   pub value: T,
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 #[cfg_attr(test, derive(Serialize))]
 pub struct Span {
   pub start: usize,
@@ -111,7 +111,7 @@ pub enum BlockToken {
   // TableRow,
 }
 
-#[derive(Eq, PartialEq, Debug, Clone)]
+#[derive(Eq, PartialEq, Debug)]
 #[cfg_attr(test, derive(Serialize))]
 pub enum MaybeInlineToken {
   Text,
@@ -124,28 +124,26 @@ pub enum MaybeInlineToken {
     can_open: bool,
     can_close: bool,
   },
-  InlineCode {
-    repeat: usize,
-    can_open: bool,
-  },
+  InlineCode,
+  InlineCodeStart,
+  InlineCodeEnd,
   Code,
-  SoftBreak,
-  HardBreak,
+  LineBreak,
   // is email
   AutoLink(bool),
 }
 
-#[derive(Eq, PartialEq, Debug, Clone)]
+#[derive(Eq, PartialEq, Debug)]
 #[cfg_attr(test, derive(Serialize))]
 pub enum InlineToken {
-  Text,
+  Text(Vec<Span>),
   EscapedText,
   Link,
   EmphasisStart { ch: u8, repeat: usize },
   EmphasisEnd,
   InlineCodeStart,
   InlineCodeEnd,
-  Code,
+  Code(Vec<Span>),
   SoftBreak,
   HardBreak,
   // is email
@@ -157,7 +155,7 @@ pub struct AST {
   pub blocks: Vec<Token<BlockToken>>,
 }
 
-#[derive(Eq, PartialEq, Debug, Clone)]
+#[derive(Eq, PartialEq, Debug)]
 #[cfg_attr(test, derive(Serialize))]
 pub enum ContainerBlock {
   BlockQuote(usize),

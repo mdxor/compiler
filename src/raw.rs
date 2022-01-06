@@ -7,10 +7,6 @@ pub enum CallbackType<'a> {
   SpecialByte(&'a [u8], usize, usize),
   // raw bytes, raw start, index
   EscapedByte(&'a [u8], usize, usize),
-  // raw start, start, end
-  SoftBreak(usize, usize, usize),
-  // raw start, start, end
-  HardBreak(usize, usize, usize),
 }
 pub enum CallbackReturn {
   None,
@@ -33,49 +29,8 @@ pub fn iterate_raws<'source, F>(
     let mut text_start = index;
     let mut raw_end = bytes.len();
 
-    let mut ending_callback: Option<CallbackType> = None;
-    if i == raws_len - 1 {
-      let ending = bytes
-        .iter()
-        .rev()
-        .take_while(|&&c| c == b'\n' || c == b'\r')
-        .count();
-      raw_end -= ending;
-    } else {
-      let ending = bytes
-        .iter()
-        .rev()
-        .take_while(|&&c| c == b' ' || c == b'\n' || c == b'\r')
-        .count();
-
-      if ending > 0 {
-        let bytes = &bytes[raw_end - ending..];
-        let (bytes, spaces) = spaces0(bytes);
-        if let Some((_, eol_size)) = eol(bytes) {
-          if eol_size > 0 {
-            if spaces >= 2 {
-              ending_callback = Some(CallbackType::HardBreak(start, raw_end - ending, raw_end));
-              raw_end -= ending;
-            } else {
-              ending_callback = Some(CallbackType::SoftBreak(start, raw_end - eol_size, raw_end));
-              raw_end -= eol_size;
-            }
-          }
-        }
-      }
-    }
     let len = bytes.len();
-    loop {
-      if index >= raw_end {
-        if raw_end > text_start {
-          callback(CallbackType::Text(bytes, start, text_start, raw_end));
-        }
-        if let Some(callbackType) = ending_callback {
-          callback(callbackType);
-          ending_callback = None;
-        }
-        break;
-      }
+    while index < raw_end {
       let byte = bytes[index];
       if byte == b'\\' && index < len - 1 {
         if bytes[index + 1].is_ascii_punctuation() {
@@ -99,6 +54,7 @@ pub fn iterate_raws<'source, F>(
           continue;
         }
       }
+
       if special_bytes[byte as usize] {
         if index > text_start {
           callback(CallbackType::Text(bytes, start, text_start, index));
