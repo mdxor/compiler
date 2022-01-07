@@ -125,8 +125,6 @@ pub enum InlineToken {
     can_close: bool,
   },
   MaybeInlineCode,
-  InlineCodeStart,
-  InlineCodeEnd,
   Text(Vec<Span>),
   EmphasisStart,
   EmphasisEnd,
