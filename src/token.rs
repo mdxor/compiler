@@ -113,41 +113,36 @@ pub enum BlockToken {
 
 #[derive(Eq, PartialEq, Debug)]
 #[cfg_attr(test, derive(Serialize))]
-pub enum MaybeInlineToken {
-  Text,
+pub enum InlineToken {
+  TextSegment,
   EscapedText,
-  LinkStart,
-  LinkEnd,
-  Emphasis {
+  MaybeLinkStart,
+  MaybeLinkEnd,
+  MaybeEmphasis {
     ch: u8,
     repeat: usize,
     can_open: bool,
     can_close: bool,
   },
-  InlineCode,
+  MaybeInlineCode,
   InlineCodeStart,
   InlineCodeEnd,
-  Code,
-  LineBreak,
-  // is email
-  AutoLink(bool),
-}
-
-#[derive(Eq, PartialEq, Debug)]
-#[cfg_attr(test, derive(Serialize))]
-pub enum InlineToken {
   Text(Vec<Span>),
-  EscapedText,
-  Link,
-  EmphasisStart { ch: u8, repeat: usize },
+  EmphasisStart,
   EmphasisEnd,
-  InlineCodeStart,
-  InlineCodeEnd,
   Code(Vec<Span>),
+  CodeSegment,
+  LineBreak,
   SoftBreak,
   HardBreak,
   // is email
   AutoLink(bool),
+  Placeholder,
+  LinkUrlTitle {
+    url: Span,
+    title: Vec<Span>,
+    start_index: usize,
+  },
 }
 
 pub struct AST {

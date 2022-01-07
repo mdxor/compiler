@@ -1,4 +1,5 @@
 use crate::input::*;
+use crate::token::*;
 // size, repeat
 pub fn atx_heading_start(bytes: &[u8]) -> Option<(usize, usize)> {
   let (bytes, repeat) = ch_repeat_min_max(bytes, b'#', 1, 6)?;
@@ -160,6 +161,150 @@ pub fn uri(bytes: &[u8]) -> Option<usize> {
   Some(size)
 }
 
+// size, url Span
+pub fn link_url(bytes: &[u8], offset: usize) -> Option<(usize, Span)> {
+  let bytes = single_char(bytes, b'(')?;
+  let (bytes, spaces) = spaces0(bytes);
+  if let Some(bytes) = single_char(bytes, b'<') {
+    let mut size = 2 + spaces;
+    let mut escaped = false;
+    let (bytes, url_size) = take_while(bytes, |ch| {
+      if ch == b' ' || ch == b'\r' || ch == b'\n' {
+        return false;
+      }
+      if escaped {
+        escaped = false;
+        return true;
+      }
+      if ch == b'\\' {
+        escaped = true;
+        return true;
+      }
+      if ch == b'>' || ch == b'<' {
+        return false;
+      }
+      true
+    });
+    single_char(bytes, b'>')?;
+    return Some((
+      size + url_size + 1,
+      Span {
+        start: offset + size,
+        end: offset + size + url_size,
+      },
+    ));
+  } else {
+    let mut nested = 0;
+    let mut escaped = false;
+    let (bytes, url_size) = take_while(bytes, |ch| {
+      if ch == b' ' || ch == b'\r' || ch == b'\n' {
+        return false;
+      }
+      if escaped {
+        escaped = false;
+        return true;
+      }
+      if ch == b'\\' {
+        escaped = true;
+        return true;
+      }
+      if ch == b'(' {
+        nested += 1;
+      }
+      if ch == b')' {
+        if nested == 0 {
+          return false;
+        }
+        nested -= 1;
+      }
+      true
+    });
+    if url_size > 0 && nested == 0 {
+      return Some((
+        url_size + 1,
+        Span {
+          start: offset,
+          end: offset + url_size,
+        },
+      ));
+    }
+  }
+  None
+}
+
+// return (end pos, url span, title spans)
+pub fn link_url_title<'a, F>(mut get_raw_span: F) -> Option<(usize, Span, Vec<Span>)>
+where
+  F: FnMut() -> Option<(&'a [u8], usize)>,
+{
+  let (bytes, mut raw_start) = get_raw_span()?;
+  single_char(bytes, b'(')?;
+  let (url_size, url_span) = link_url(bytes, raw_start)?;
+  let mut bytes = &bytes[url_size..];
+  let mut title: Vec<Span> = vec![];
+  let mut title_ch: Option<u8> = None;
+  let mut title_end = false;
+  let mut raw_start = raw_start + url_size;
+  loop {
+    let mut index = 0;
+    let mut escaped = false;
+    let mut title_start: Option<usize> = if title_ch.is_some() && !title_end {
+      Some(0)
+    } else {
+      None
+    };
+    while index < bytes.len() {
+      let byte = bytes[index];
+      if title_end {
+        if byte == b')' {
+          return Some((raw_start + index, url_span, title));
+        }
+        if byte != b' ' && byte != b'\r' && byte != b'\n' {
+          return None;
+        }
+      }
+      if title_ch.is_none() {
+        if byte == b')' {
+          return Some((raw_start + index, url_span, title));
+        }
+        if byte == b'"' || byte == b'\'' {
+          title_start = Some(index + 1);
+          title_ch = Some(byte);
+        } else if byte != b' ' && byte != b'\r' && byte != b'\n' {
+          return None;
+        }
+      } else {
+        if escaped {
+          escaped = false;
+        } else if byte == b'\\' {
+          escaped = true;
+        } else if byte == title_ch.unwrap() {
+          if let Some(title_start) = title_start {
+            title.push(Span {
+              start: title_start + raw_start,
+              end: raw_start + index,
+            });
+          }
+          title_end = true;
+        }
+      }
+      index += 1;
+    }
+    if let Some(title_start) = title_start {
+      title.push(Span {
+        start: title_start + raw_start,
+        end: raw_start + bytes.len(),
+      });
+    }
+    if let Some((next_bytes, next_raw_start)) = get_raw_span() {
+      bytes = next_bytes;
+      raw_start = next_raw_start;
+    } else {
+      break;
+    }
+  }
+  None
+}
 // fn import_declaration(input: &[u8]) -> IResult<&[u8], ()> {
 //   let (input, _) = preceded(space0, tag("import"))(input)?;
 //   Ok((input, ()))
