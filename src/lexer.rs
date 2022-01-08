@@ -305,6 +305,50 @@ where
   }
   None
 }
+
+pub fn is_left_flanking_delimiter(bytes: &[u8], start: usize, end: usize) -> bool {
+  let len = bytes.len();
+  if end >= len || bytes[end].is_ascii_whitespace() {
+    return false;
+  }
+  let next_byte = if let Some(c) = bytes.get(end + 1) {
+    c
+  } else {
+    return true;
+  };
+  // TODO
+  if !next_byte.is_ascii_punctuation()
+    || (start == 0
+      || bytes[start - 1].is_ascii_whitespace()
+      || bytes[start - 1].is_ascii_punctuation())
+  {
+    return true;
+  }
+  return false;
+}
+
+pub fn is_right_flanking_delimiter(bytes: &[u8], start: usize, end: usize) -> bool {
+  let len = bytes.len();
+  if start == 0 || bytes[start - 1].is_ascii_whitespace() {
+    return false;
+  }
+  let prev_byte = if let Some(c) = bytes.get(start - 1) {
+    c
+  } else {
+    return true;
+  };
+  // TODO
+  if !prev_byte.is_ascii_punctuation()
+    || (end >= len || bytes[end].is_ascii_whitespace() || bytes[end].is_ascii_punctuation())
+  {
+    return true;
+  }
+  return false;
+}
+
+pub fn rev_spaces0(bytes: &[u8]) -> usize {
+  bytes.iter().rev().take_while(|&&c| c == b' ').count()
+}
 // fn import_declaration(input: &[u8]) -> IResult<&[u8], ()> {
 //   let (input, _) = preceded(space0, tag("import"))(input)?;
 //   Ok((input, ()))

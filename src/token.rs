@@ -115,32 +115,28 @@ pub enum BlockToken {
 #[cfg_attr(test, derive(Serialize))]
 pub enum InlineToken {
   TextSegment,
-  EscapedText,
   MaybeLinkStart,
-  MaybeLinkEnd,
   MaybeEmphasis {
     ch: u8,
     repeat: usize,
     can_open: bool,
     can_close: bool,
   },
-  MaybeInlineCode,
-  Text(Vec<Span>),
+  //
   EmphasisStart,
   EmphasisEnd,
+  Text(Vec<Span>),
   Code(Vec<Span>),
   CodeSegment,
-  LineBreak,
   SoftBreak,
   HardBreak,
   // is email
   AutoLink(bool),
-  Placeholder,
-  LinkUrlTitle {
+  LinkStart {
     url: Span,
     title: Vec<Span>,
-    start_index: usize,
   },
+  LinkEnd,
 }
 
 pub struct AST {
