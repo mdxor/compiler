@@ -122,9 +122,20 @@ pub enum InlineToken {
     can_open: bool,
     can_close: bool,
   },
-  //
   EmphasisStart,
   EmphasisEnd,
+  LinkStart {
+    url: Span,
+    title: Vec<Span>,
+  },
+  LinkEnd,
+  //
+  Emphasis(Vec<Token<InlineToken>>),
+  Link {
+    url: Span,
+    title: Vec<Span>,
+    text_children: Vec<Token<InlineToken>>,
+  },
   Text(Vec<Span>),
   Code(Vec<Span>),
   CodeSegment,
@@ -132,16 +143,12 @@ pub enum InlineToken {
   HardBreak,
   // is email
   AutoLink(bool),
-  LinkStart {
-    url: Span,
-    title: Vec<Span>,
-  },
-  LinkEnd,
 }
 
-pub struct AST {
+#[derive(Eq, PartialEq, Debug)]
+pub struct AST<T> {
   pub span: Span,
-  pub blocks: Vec<Token<BlockToken>>,
+  pub children: Vec<T>,
 }
 
 #[derive(Eq, PartialEq, Debug)]

@@ -22,7 +22,7 @@ use crate::codegen::*;
 pub fn parse(source: &str) -> String {
   let mut blockParser = BlockParser::new(source);
   let mut ast = blockParser.parse();
-  let mut codegen = Codegen::new(source);
+  let mut codegen = Codegen::new(source, source.as_bytes());
   codegen.gen(&mut ast);
   codegen.code
 }

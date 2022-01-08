@@ -1,17 +1,19 @@
 use crate::block::*;
 use crate::document::*;
-// use crate::inline::*;
+use crate::inline::*;
 use crate::token::*;
-pub struct Codegen<'source> {
+pub struct Codegen<'a> {
   pub code: String,
-  source: &'source str,
+  source: &'a str,
+  bytes: &'a [u8],
 }
 
-impl<'source> Codegen<'source> {
-  pub fn new(source: &'source str) -> Self {
+impl<'a> Codegen<'a> {
+  pub fn new(source: &'a str, bytes: &'a [u8]) -> Self {
     Codegen {
       code: String::new(),
       source,
+      bytes,
     }
   }
 
@@ -19,97 +21,76 @@ impl<'source> Codegen<'source> {
     self.code.push_str(str);
   }
 
-  pub fn gen(&mut self, ast: &AST) {
-    self.write("jsxs(\"div\", {children: [");
-    self.gen_blocks(&ast.blocks);
-    self.write("]})");
+  fn write_jsx_start(&mut self, tag: &str) {
+    self.code.push_str("_jsxRuntime.jsxs)(\"");
+    self.code.push_str(tag);
+    self.code.push_str("\",{children:[");
+  }
+  fn write_jsx_end(&mut self) {
+    self.code.push_str("]})");
+  }
+  fn write_jsxs_start(&mut self, tag: &str) {
+    self.code.push_str("_jsxRuntime.jsx)(\"");
+    self.code.push_str(tag);
+    self.code.push_str("\",{children:");
+  }
+  fn write_jsxs_end(&mut self) {
+    self.code.push_str("})");
   }
 
-  pub fn gen_blocks(&mut self, blocks: &Vec<Token<BlockToken>>) {
+  pub fn gen(&mut self, ast: &AST<Token<BlockToken>>) {
+    self.gen_blocks("_jsxRuntime.Fragment", &ast.children);
+  }
+
+  pub fn gen_blocks(&mut self, tag: &str, blocks: &Vec<Token<BlockToken>>) {
+    let jsxs = blocks.len() > 1;
+    if jsxs {
+      self.write_jsxs_start(tag);
+    } else {
+      self.write_jsx_start(tag);
+    }
     for block in blocks {
-      self.gen_block(block);
+      self.gen_block(block, jsxs);
+    }
+    if jsxs {
+      self.write_jsxs_end();
+    } else {
+      self.write_jsx_end();
     }
   }
 
-  pub fn gen_block(&mut self, block: &Token<BlockToken>) {
-    let Span { start, end } = block.span;
+  fn gen_leaf_block(&mut self, tag: &str, raws: &Vec<Span>) {
+    let mut inline_parser = InlineParser::new(self.bytes, raws);
+    let inlines = inline_parser.parse();
+    self.gen_inlines(tag, &inlines.children);
+  }
+
+  fn gen_inlines(&mut self, tag: &str, inlines: &Vec<Token<InlineToken>>) {}
+
+  fn gen_block(&mut self, block: &Token<BlockToken>, jsxs: bool) {
     match &block.value {
       BlockToken::ATXHeading { level, raws } => {
-        self.write("jsxs(\"");
-        self.write(level.to_str());
-        self.write("\", {children: [");
-        self.gen_raws(raws);
+        self.gen_leaf_block(level.to_str(), raws);
       }
       BlockToken::SetextHeading { level, raws } => {
-        self.write("jsxs(\"");
-        self.write(level.to_str());
-        self.write("\", {children: [");
-        self.gen_raws(raws);
+        self.gen_leaf_block(level.to_str(), raws);
       }
       BlockToken::Paragraph { raws } => {
-        self.write("jsxs(\"p\", {children: [");
-        self.gen_raws(raws);
+        self.gen_leaf_block("p", raws);
       }
       BlockToken::BlockQuote { level, blocks } => {
-        self.write("jsxs(\"blockquote\", {children: [");
-        self.gen_blocks(blocks);
+        self.gen_blocks("blockquote", blocks);
       }
       BlockToken::List { blocks, .. } => {
-        self.write("jsxs(\"ul\", {children: [");
-        self.gen_blocks(blocks);
+        self.gen_blocks("ul", blocks);
       }
       BlockToken::ListItem { blocks, .. } => {
-        self.write("jsxs(\"li\", {children: [");
-        self.gen_blocks(blocks);
+        self.gen_blocks("li", blocks);
       }
-      _ => {
-        self.write("jsxs(\"div\", {children: [");
-      }
+      _ => {}
     }
-    self.write("]})");
-  }
-
-  fn gen_raws(&mut self, raws: &Vec<Span>) {
-    // let tokens = parse_raws_to_inlines(raws);
-    // let source = document.source;
-    // for item in tokens {
-    //   let start = item.span.start;
-    //   let end = item.span.end;
-    //   match item.value {
-    //     InlineToken::Text => {
-    //       self.write("\"");
-    //       self.write(&source[start..end]);
-    //       self.write("\",");
-    //     }
-    //     InlineToken::Code => {
-    //       self.write("\"");
-    //       self.write(&source[start..end]);
-    //       self.write("\",");
-    //     }
-    //     InlineToken::InlineCodeStart => {
-    //       self.write("jsxs(\"code\", {children: [");
-    //     }
-    //     InlineToken::InlineCodeEnd => {
-    //       self.write("]})");
-    //     }
-    //     InlineToken::EmphasisStart { keyword, repeat } => match keyword {
-    //       b'*' | b'_' => {
-    //         if repeat > 1 {
-    //           self.write("jsxs(\"strong\", {children: [");
-    //         } else {
-    //           self.write("jsxs(\"em\", {children: [");
-    //         }
-    //       }
-    //       b'~' => {
-    //         self.write("jsxs(\"del\", {children: [");
-    //       }
-    //       _ => (),
-    //     },
-    //     InlineToken::EmphasisEnd { .. } => {
-    //       self.write("]})");
-    //     }
-    //     _ => {}
-    //   }
-    // }
+    if jsxs {
+      self.write(",");
+    }
   }
 }

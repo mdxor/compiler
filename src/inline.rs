@@ -9,7 +9,6 @@ pub struct InlineParser<'a> {
   raws: &'a Vec<Span>,
   special_bytes: [bool; 256],
   maybe_tokens: VecDeque<Token<InlineToken>>,
-  tokens: Vec<Token<InlineToken>>,
   index: usize,
   text_start: usize,
   // token index, ch, repeat
@@ -34,7 +33,6 @@ impl<'a> InlineParser<'a> {
       raws,
       special_bytes,
       maybe_tokens: VecDeque::new(),
-      tokens: vec![],
       index: 0,
       pos,
       text_start: pos,
@@ -45,10 +43,14 @@ impl<'a> InlineParser<'a> {
     }
   }
 
-  pub fn parse(&mut self) -> Vec<Token<InlineToken>> {
+  pub fn parse(&mut self) -> AST<Token<InlineToken>> {
     self.parse_raws();
-    self.process_tokens();
-    mem::replace(&mut self.tokens, vec![])
+    let start = self.raws.first().unwrap().start;
+    let (children, end) = self.parse_tokens();
+    AST {
+      children,
+      span: Span { start, end },
+    }
   }
 
   fn parse_raws(&mut self) {
@@ -379,10 +381,9 @@ impl<'a> InlineParser<'a> {
     }
   }
 
-  fn process_tokens(&mut self) {
-    let len = self.maybe_tokens.len();
+  fn parse_tokens(&mut self) -> (Vec<Token<InlineToken>>, usize) {
+    let mut children = vec![];
     while !self.maybe_tokens.is_empty() {
-      let index = len - self.maybe_tokens.len();
       let maybe_token = self.maybe_tokens.pop_front().unwrap();
       let mut span = maybe_token.span;
       let token_value = maybe_token.value;
@@ -390,32 +391,54 @@ impl<'a> InlineParser<'a> {
         InlineToken::MaybeLinkStart
         | InlineToken::TextSegment
         | InlineToken::MaybeLinkStart { .. } => {
-          self.push_text(span);
+          if let Some(Token {
+            value: InlineToken::Text(text_spans),
+            span: text_span,
+          }) = children.last_mut()
+          {
+            text_span.end = span.end;
+            text_spans.push(span);
+          } else {
+            children.push(Token {
+              value: InlineToken::Text(vec![span.clone()]),
+              span,
+            });
+          }
         }
-        _ => {
-          self.tokens.push(Token {
-            value: token_value,
-            span,
+        InlineToken::LinkStart { url, title } => {
+          let start = span.start;
+          let (text_children, end) = self.parse_tokens();
+          children.push(Token {
+            value: InlineToken::Link {
+              url,
+              title,
+              text_children,
+            },
+            span: Span { start, end },
           });
         }
+        InlineToken::EmphasisStart => {
+          let start = span.start;
+          let (em_children, end) = self.parse_tokens();
+          children.push(Token {
+            value: InlineToken::Emphasis(em_children),
+            span: Span { start, end },
+          });
+        }
+        InlineToken::LinkEnd | InlineToken::EmphasisEnd => {
+          return (children, span.end);
+        }
+        _ => children.push(Token {
+          value: token_value,
+          span,
+        }),
       }
     }
-  }
-
-  fn push_text(&mut self, span: Span) {
-    if let Some(Token {
-      value: InlineToken::Text(text_spans),
-      span: text_span,
-    }) = self.tokens.last_mut()
-    {
-      text_span.end = span.end;
-      text_spans.push(span);
-      return;
+    if children.len() == 0 {
+      return (children, 0);
     }
-    self.tokens.push(Token {
-      value: InlineToken::Text(vec![span.clone()]),
-      span,
-    });
+    let end = children.last().unwrap().span.end;
+    (children, end)
   }
 }
 

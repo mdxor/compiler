@@ -19,10 +19,10 @@ impl<'source> BlockParser<'source> {
     }
   }
 
-  pub fn parse(&mut self) -> AST {
+  pub fn parse(&mut self) -> AST<Token<BlockToken>> {
     let mut blocks = self.scan_blocks();
     AST {
-      blocks,
+      children: blocks,
       span: Span {
         start: 0,
         end: self.source.len(),
