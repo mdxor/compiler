@@ -14,7 +14,6 @@ mod jsx;
 #[cfg(test)]
 mod jsx_test;
 mod lexer;
-mod module;
 mod token;
 use crate::block::*;
 use crate::codegen::*;
