@@ -2,7 +2,6 @@ use crate::input::*;
 use crate::lexer::*;
 use crate::token::*;
 use std::collections::VecDeque;
-use std::mem;
 
 pub struct InlineParser<'a> {
   bytes: &'a [u8],
@@ -151,7 +150,7 @@ impl<'a> InlineParser<'a> {
     let mut codes: Vec<Span> = vec![];
     let mut raw = &self.raws[index];
     let mut raw_bytes = &self.bytes[raw.start..raw.end];
-    let mut code_start = self.pos + repeat - 1;
+    let mut code_start = self.pos + repeat;
     loop {
       if pos == raw.end {
         index += 1;
@@ -170,12 +169,13 @@ impl<'a> InlineParser<'a> {
         pos += 1;
       }
       let i = pos - raw.start;
+      // TODO
       if raw_bytes[i] == b'`' {
         let (_, end_repeat) = ch_repeat(&raw_bytes[i..], b'`');
         if end_repeat == repeat {
           codes.push(Span {
             start: code_start,
-            end: i,
+            end: pos,
           });
           pos += repeat;
           self.maybe_tokens.push_back(Token {
@@ -442,17 +442,17 @@ impl<'a> InlineParser<'a> {
   }
 }
 
-#[test]
-fn test_parse_raws() {
-  let bytes = b"`123`2*code*  \n1<https://mdxor.com>";
-  let raws = vec![
-    Span { start: 0, end: 15 },
-    Span {
-      start: 15,
-      end: bytes.len(),
-    },
-  ];
-  let mut inline_parser = InlineParser::new(bytes, &raws);
-  let tokens = inline_parser.parse();
-  println!("{:?}", tokens);
-}
+// #[test]
+// fn test_parse_raws() {
+//   let bytes = b"`123`2*code*  \n1<https://mdxor.com>";
+//   let raws = vec![
+//     Span { start: 0, end: 15 },
+//     Span {
+//       start: 15,
+//       end: bytes.len(),
+//     },
+//   ];
+//   let mut inline_parser = InlineParser::new(bytes, &raws);
+//   let tokens = inline_parser.parse();
+//   println!("{:?}", tokens);
+// }

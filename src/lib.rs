@@ -9,6 +9,7 @@ mod codegen;
 mod document;
 mod inline;
 mod input;
+mod js_lexer;
 mod jsx;
 #[cfg(test)]
 mod jsx_test;

@@ -133,7 +133,6 @@ impl<'source> BlockParser<'source> {
           },
         });
       }
-      break;
     }
     blocks
   }
@@ -230,12 +229,12 @@ impl<'source> BlockParser<'source> {
     }
     if let Some((start_size, level)) = atx_heading_start(bytes) {
       let (line_size, _) = one_line(bytes);
-      let end = self.document.forward(start_size + line_size);
+      let end = self.document.forward(line_size);
       return Token {
         value: BlockToken::ATXHeading {
           level: HeadingLevel::new(level).unwrap(),
           raws: vec![Span {
-            start: start + line_size,
+            start: start + start_size,
             end,
           }],
         },
