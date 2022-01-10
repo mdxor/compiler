@@ -1,0 +1,61 @@
+---
+source: src/jsx_test.rs
+expression: results
+
+---
+- Ok:
+    name: div
+    attrs: []
+    children: []
+- Ok:
+    name: div
+    attrs:
+      - KeyValue:
+          key: test
+          value:
+            String: "true"
+    children:
+      - Text: 中文测试
+      - Node:
+          name: div
+          attrs: []
+          children:
+            - Text: en
+- Ok:
+    name: div
+    attrs:
+      - KeyValue:
+          key: test
+          value:
+            String: "true"
+      - KeyValue:
+          key: content
+          value:
+            Expression:
+              children:
+                - Code: "() => "
+                - Node:
+                    name: span
+                    attrs: []
+                    children:
+                      - Text: content
+    children:
+      - Text: 中文测试
+      - Node:
+          name: div
+          attrs: []
+          children:
+            - Text: en
+- Ok:
+    name: React.Fragment
+    attrs: []
+    children: []
+- Ok:
+    name: ""
+    attrs: []
+    children: []
+- Ok:
+    name: SelfClosed
+    attrs: []
+    children: []
+

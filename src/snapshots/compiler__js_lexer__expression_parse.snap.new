@@ -1,0 +1,7 @@
+---
+source: src/js_lexer.rs
+expression: result
+
+---
+- ~
+
