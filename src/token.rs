@@ -158,3 +158,14 @@ pub enum ContainerBlock {
   List(u8),
   ListItem(usize),
 }
+
+#[derive(Eq, PartialEq, Debug)]
+#[cfg_attr(test, derive(Serialize))]
+pub enum JSToken {
+  Keyword,
+  Punctuator,
+  String,
+  Template,
+  Identifier,
+  Number,
+}
