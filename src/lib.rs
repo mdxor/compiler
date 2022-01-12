@@ -1,15 +1,14 @@
 extern crate wasm_bindgen;
 use wasm_bindgen::prelude::*;
 
-mod _js_lexer;
 mod block;
 mod codegen;
 mod document;
 mod inline;
 mod input;
-mod js_lexer;
-mod js_parser;
 mod jsx;
+mod jsx_lexer;
+mod jsx_parser;
 #[cfg(test)]
 mod jsx_test;
 mod lexer;

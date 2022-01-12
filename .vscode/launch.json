@@ -8,7 +8,7 @@
       "type": "lldb",
       "request": "launch",
       "name": "Debug",
-      "program": "${workspaceRoot}/target/debug/deps/compiler-af780f0983d93917",
+      "program": "${workspaceRoot}/target/debug/deps/compiler-4f7420aa806c2c2d",
       "args": [],
       "cwd": "${workspaceFolder}"
     }

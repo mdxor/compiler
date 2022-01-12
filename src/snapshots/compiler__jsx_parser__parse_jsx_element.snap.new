@@ -1,0 +1,35 @@
+---
+source: src/jsx_parser.rs
+expression: results
+
+---
+- tag: div
+  attributes:
+    - KeyValue:
+        key:
+          start: 5
+          end: 6
+        value:
+          - JS:
+              start: 8
+              end: 9
+          - JS:
+              start: 9
+              end: 10
+          - JS:
+              start: 10
+              end: 11
+          - JS:
+              start: 12
+              end: 16
+          - JS:
+              start: 19
+              end: 22
+          - JS:
+              start: 25
+              end: 26
+          - JS:
+              start: 26
+              end: 27
+  children: []
+

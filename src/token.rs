@@ -162,10 +162,51 @@ pub enum ContainerBlock {
 #[derive(Eq, PartialEq, Debug)]
 #[cfg_attr(test, derive(Serialize))]
 pub enum JSToken {
-  Keyword,
-  Punctuator,
-  String,
-  Template,
-  Identifier,
-  Number,
+  Keyword(Span),
+  Punctuator(Span),
+  String(Span),
+  Template(Span),
+  Identifier(Span),
+  Number(Span),
+  Text(Span),
+}
+
+#[derive(Eq, PartialEq, Debug)]
+#[cfg_attr(test, derive(Serialize))]
+pub enum JSXAttr {
+  Spread(Vec<JSXExpressionSegment>),
+  KeyLiteralValue {
+    key: Span,
+    value: Span,
+  },
+  KeyValue {
+    key: Span,
+    value: Vec<JSXExpressionSegment>,
+  },
+  KeyTrueValue {
+    key: Span,
+  },
+}
+
+#[derive(Eq, PartialEq, Debug)]
+#[cfg_attr(test, derive(Serialize))]
+pub enum JSXExpressionSegment {
+  JS(Span),
+  Element(JSXElement),
+}
+
+#[derive(Eq, PartialEq, Debug)]
+#[cfg_attr(test, derive(Serialize))]
+pub enum JSX {
+  Element(JSXElement),
+  Text(Span),
+  Expression(Vec<JSXExpressionSegment>),
+}
+
+#[derive(Eq, PartialEq, Debug)]
+#[cfg_attr(test, derive(Serialize))]
+pub struct JSXElement {
+  pub tag: String,
+  pub attributes: Vec<JSXAttr>,
+  pub children: Vec<JSX>,
 }
