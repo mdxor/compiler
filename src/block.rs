@@ -1,13 +1,17 @@
 use crate::document::*;
 use crate::input::*;
+use crate::jsx_parser::*;
 use crate::lexer::*;
 use crate::token::*;
+use std::collections::VecDeque;
+use std::mem::replace;
 
 pub struct BlockParser<'source> {
   source: &'source str,
   document: Document<'source>,
   spine: Vec<ContainerBlock>,
   last_leaf_end: usize,
+  tmp_tokens: VecDeque<Token<BlockToken>>,
 }
 impl<'source> BlockParser<'source> {
   pub fn new(source: &'source str) -> Self {
@@ -16,6 +20,7 @@ impl<'source> BlockParser<'source> {
       spine: Vec::new(),
       document: Document::new(source),
       last_leaf_end: 0,
+      tmp_tokens: VecDeque::new(),
     }
   }
 
@@ -38,67 +43,74 @@ impl<'source> BlockParser<'source> {
         break;
       }
       let block = self.scan_block();
-      match block {
-        Token {
-          value: BlockToken::Paragraph {
-            raws: mut next_raws,
-          },
-          span,
-        } => {
-          let end = span.end;
-          if let Some(Token {
-            value: BlockToken::Paragraph { raws },
-            span,
-          }) = blocks.last_mut()
-          {
-            span.end = end;
-            raws.append(&mut next_raws);
-          } else {
-            blocks.push(Token {
-              value: BlockToken::Paragraph { raws: next_raws },
-              span,
-            });
-          }
-          continue;
-        }
-        Token {
-          value: BlockToken::SetextHeading { level, raws },
-          span,
-        } => {
-          let Span { start, end } = span;
-          if let Some(Token {
-            value: BlockToken::Paragraph { .. },
-            ..
-          }) = blocks.last()
-          {
-            if let Some(Token {
-              value: BlockToken::Paragraph { raws },
-              span: p_span,
-            }) = blocks.pop()
-            {
-              blocks.push(Token {
-                value: BlockToken::SetextHeading { level: level, raws },
-                span: Span {
-                  start: p_span.start,
-                  end: end,
-                },
-              });
-            }
-          } else {
-            blocks.push(Token {
-              value: BlockToken::Paragraph {
-                raws: vec![Span { start, end }],
-              },
-              span,
-            });
-          }
-        }
-        _ => {
-          blocks.push(block);
-        }
+      self.process_block(&mut blocks, block);
+      while !self.tmp_tokens.is_empty() {
+        let block = self.tmp_tokens.pop_front().unwrap();
+        self.process_block(&mut blocks, block);
       }
     }
     blocks
+  }
+
+  fn process_block(&mut self, blocks: &mut Vec<Token<BlockToken>>, block: Token<BlockToken>) {
+    match block {
+      Token {
+        value: BlockToken::Paragraph {
+          raws: mut next_raws,
+        },
+        span,
+      } => {
+        let end = span.end;
+        if let Some(Token {
+          value: BlockToken::Paragraph { raws },
+          span,
+        }) = blocks.last_mut()
+        {
+          span.end = end;
+          raws.append(&mut next_raws);
+        } else {
+          blocks.push(Token {
+            value: BlockToken::Paragraph { raws: next_raws },
+            span,
+          });
+        }
+      }
+      Token {
+        value: BlockToken::SetextHeading { level, raws },
+        span,
+      } => {
+        let Span { start, end } = span;
+        if let Some(Token {
+          value: BlockToken::Paragraph { .. },
+          ..
+        }) = blocks.last()
+        {
+          if let Some(Token {
+            value: BlockToken::Paragraph { raws },
+            span: p_span,
+          }) = blocks.pop()
+          {
+            blocks.push(Token {
+              value: BlockToken::SetextHeading { level: level, raws },
+              span: Span {
+                start: p_span.start,
+                end: end,
+              },
+            });
+          }
+        } else {
+          blocks.push(Token {
+            value: BlockToken::Paragraph {
+              raws: vec![Span { start, end }],
+            },
+            span,
+          });
+        }
+      }
+      _ => {
+        blocks.push(block);
+      }
+    }
   }
 
   // TODO: indent
@@ -263,17 +275,62 @@ impl<'source> BlockParser<'source> {
     };
   }
 
-  fn scan_paragraph(&mut self) -> Token<BlockToken> {
+  fn scan_paragraph_like(&mut self) -> Token<BlockToken> {
     let bytes = self.document.bytes();
     let start = self.document.start();
     let (line_size, _) = one_line(bytes);
     let end = self.document.forward(line_size);
-    let mut raws = vec![Span { start, end }];
+    let span = Span { start, end };
+    let mut tokens: VecDeque<Token<BlockToken>> = VecDeque::new();
+    let mut raws_deque = VecDeque::new();
+    raws_deque.push_back(span);
     if let Some(_) = single_char(bytes, b'<') {
-      
+      loop {
+        if let Some(size) = self.interrupt_continuous_block() {
+          self.document.forward(size);
+          let start = self.document.start();
+          let (line_size, _) = one_line(bytes);
+          let end = self.document.forward(line_size);
+          let span = Span { start, end };
+          raws_deque.push_back(span);
+        } else {
+          break;
+        }
+      }
+      let mut raws: Vec<Span> = vec![];
+      while !raws_deque.is_empty() {
+        let mut parser = JSXParser::new(self.source, self.document.bytes, &raws_deque);
+        if let Some((element, end, mut index)) = parser.jsx() {
+          if !raws.is_empty() {
+            let span = Span {
+              start: raws.first().unwrap().start,
+              end: raws.last().unwrap().end,
+            };
+            tokens.push_back(Token {
+              value: BlockToken::Paragraph {
+                raws: replace(&mut raws, vec![]),
+              },
+              span,
+            })
+          }
+          let start = raws_deque.front().unwrap().start;
+          tokens.push_back(Token {
+            value: BlockToken::JSX(element),
+            span: Span { start, end },
+          });
+          raws_deque.drain(..index);
+        } else {
+          raws.push(raws_deque.pop_front().unwrap());
+        }
+      }
+      let token = tokens.pop_front().unwrap();
+      self.tmp_tokens = tokens;
+      return token;
     }
     return Token {
-      value: BlockToken::Paragraph { raws },
+      value: BlockToken::Paragraph {
+        raws: Vec::from(raws_deque),
+      },
       span: Span { start, end },
     };
   }
@@ -328,7 +385,7 @@ impl<'source> BlockParser<'source> {
   }
 
   // table, link def
-  fn interrupt_paragraph_like(&mut self) -> Option<usize> {
+  fn interrupt_continuous_block(&mut self) -> Option<usize> {
     let (size, level) = self.continue_container();
     if level == self.spine.len() {
       self.document.reset_spaces();

@@ -1,5 +1,6 @@
 use crate::jsx_lexer::*;
 use crate::token::*;
+use std::collections::VecDeque;
 
 pub struct JSXParser<'a> {
   source: &'a str,
@@ -7,7 +8,7 @@ pub struct JSXParser<'a> {
 }
 
 impl<'a> JSXParser<'a> {
-  pub fn new(source: &'a str, bytes: &'a [u8], spans: &'a Vec<Span>) -> Self {
+  pub fn new(source: &'a str, bytes: &'a [u8], spans: &'a VecDeque<Span>) -> Self {
     let lexer = JSXLexer::new(bytes, spans);
     Self { source, lexer }
   }
@@ -114,6 +115,12 @@ impl<'a> JSXParser<'a> {
       return Some(());
     }
     self.js_import()
+  }
+
+  pub fn jsx(&mut self) -> Option<(JSXElement, usize, usize)> {
+    let element = self.jsx_element(false)?;
+    let (pos, index) = self.lexer.finish_jsx()?;
+    Some((element, pos, index))
   }
 
   pub fn jsx_element(&mut self, opened: bool) -> Option<JSXElement> {
@@ -428,10 +435,10 @@ fn test_parse_jsx_element() {
   let cases = vec!["<div a={{b: true ? '1' : 3}}><a></a>222</div>"];
   let mut results = vec![];
   for case in &cases {
-    let spans = vec![Span {
+    let spans = VecDeque::from(vec![Span {
       start: 0,
       end: case.len(),
-    }];
+    }]);
     let mut parser = JSXParser::new(case, case.as_bytes(), &spans);
     results.push(parser.jsx_element(false));
   }
@@ -443,10 +450,10 @@ fn test_parse_import_export() {
   let cases = vec!["import React from 'react';\nmport Vue from 'vue'"];
   let mut results = vec![];
   for case in &cases {
-    let spans = vec![Span {
+    let spans = VecDeque::from(vec![Span {
       start: 0,
       end: case.len(),
-    }];
+    }]);
     let mut parser = JSXParser::new(case, case.as_bytes(), &spans);
     results.push(parser.js_import_export());
   }

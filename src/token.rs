@@ -73,6 +73,7 @@ pub enum BlockToken {
   Paragraph {
     raws: Vec<Span>,
   },
+  JSX(JSXElement),
   ATXHeading {
     raws: Vec<Span>,
     level: HeadingLevel,
@@ -108,7 +109,7 @@ pub enum BlockToken {
   // TableCell(&'source str, bool, bool),
   // TableAlignment,
   // TableAlign(Align),
-  // TableRow,
+  // TableRow
 }
 
 #[derive(Eq, PartialEq, Debug)]

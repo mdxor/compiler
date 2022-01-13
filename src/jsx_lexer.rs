@@ -1,16 +1,17 @@
 use crate::input::*;
 use crate::token::*;
+use std::collections::VecDeque;
 
 pub struct JSXLexer<'a> {
   pub bytes: &'a [u8],
   pub cur_bytes: &'a [u8],
   pos: usize,
   index: usize,
-  spans: &'a Vec<Span>,
+  spans: &'a VecDeque<Span>,
 }
 
 impl<'a> JSXLexer<'a> {
-  pub fn new(bytes: &'a [u8], spans: &'a Vec<Span>) -> Self {
+  pub fn new(bytes: &'a [u8], spans: &'a VecDeque<Span>) -> Self {
     let pos = if spans.len() > 0 { spans[0].start } else { 0 };
     let cur_bytes = if spans.len() > 0 {
       let Span { start, end } = spans[0];
@@ -250,10 +251,10 @@ impl<'a> JSXLexer<'a> {
     }));
   }
 
-  pub fn finish_jsx(&mut self) -> Option<usize> {
+  pub fn finish_jsx(&mut self) -> Option<(usize, usize)> {
     let (bytes, size) = spaces_newlines_0(self.cur_bytes);
     if bytes.is_empty() {
-      Some(self.forward(size))
+      Some((self.forward(size), self.index + 1))
     } else {
       None
     }
