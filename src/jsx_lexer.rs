@@ -107,13 +107,30 @@ impl<'a> JSXLexer<'a> {
     self.read_head_punctuator()
   }
 
-  pub fn read_identifier(&mut self) -> Option<JSToken> {
+  pub fn read_identifier(&mut self) -> Option<Span> {
     let bytes = self.skip_spaces_newlines()?;
     let (_, size) = identifier(bytes)?;
-    return Some(JSToken::Identifier(Span {
-      start: self.pos,
-      end: self.forward(size),
-    }));
+    let word = &bytes[..size];
+    if !is_reserved_word(word) {
+      return Some(Span {
+        start: self.pos,
+        end: self.forward(size),
+      });
+    }
+    return None;
+  }
+
+  pub fn read_keyword(&mut self) -> Option<Span> {
+    let bytes = self.skip_spaces_newlines()?;
+    let (_, size) = identifier(bytes)?;
+    let word = &bytes[..size];
+    if is_reserved_word(word) {
+      return Some(Span {
+        start: self.pos,
+        end: self.forward(size),
+      });
+    }
+    return None;
   }
 
   pub fn read_jsx_text(&mut self) -> Option<JSToken> {
@@ -233,11 +250,43 @@ impl<'a> JSXLexer<'a> {
     }));
   }
 
-  pub fn finish(&mut self) -> Option<usize> {
+  pub fn finish_jsx(&mut self) -> Option<usize> {
     let (bytes, size) = spaces_newlines_0(self.cur_bytes);
     if bytes.is_empty() {
       Some(self.forward(size))
     } else {
+      None
+    }
+  }
+
+  pub fn finish_js(&mut self) -> Option<usize> {
+    let (bytes, size) = take_while(self.cur_bytes, |c| {
+      if c == b';' || c == b' ' {
+        true
+      } else {
+        false
+      }
+    });
+    let eol_size = eol(bytes)?.1;
+    Some(self.forward(size + eol_size))
+  }
+
+  pub fn read_separator(&mut self) -> Option<usize> {
+    let mut flag = false;
+    let size = take_while(self.cur_bytes, |c| {
+      if c == b'\r' || c == b'\n' || c == b';' {
+        flag = true;
+        return false;
+      } else if c != b' ' {
+        return false;
+      }
+      true
+    })
+    .1;
+    if flag || size == self.cur_bytes.len() {
+      Some(self.forward(size))
+    } else {
+      self.forward(size);
       None
     }
   }

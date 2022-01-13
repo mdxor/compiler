@@ -12,6 +12,110 @@ impl<'a> JSXParser<'a> {
     Self { source, lexer }
   }
 
+  pub fn js_import_export(&mut self) -> Option<usize> {
+    let mut size: Option<usize> = None;
+    loop {
+      if let Some(span) = self.lexer.read_keyword() {
+        let word = &self.lexer.bytes[span.start..span.end];
+        if word == b"import" {
+          if self.js_import().is_none() {
+            break;
+          }
+        } else if word == b"export" {
+          if self.js_export().is_none() {
+            break;
+          }
+        } else {
+          break;
+        }
+        if self.lexer.read_separator().is_some() {
+          if let Some(pos) = self.lexer.finish_js() {
+            size = Some(pos);
+          }
+          continue;
+        }
+      }
+      break;
+    }
+    size
+  }
+
+  pub fn js_import(&mut self) -> Option<()> {
+    self.js_import_specifier()?;
+    let Span { start, end } = self.lexer.read_identifier()?;
+    let from = &self.lexer.bytes[start..end];
+    if from != b"from" {
+      return None;
+    }
+    self.lexer.read_string_literal()?;
+    Some(())
+  }
+
+  pub fn js_import_specifier(&mut self) -> Option<()> {
+    let mut default = false;
+    if let Some(span) = self.lexer.read_identifier() {
+      default = true;
+      if self.lexer.read_target_punctuator(b",").is_none() {
+        return Some(());
+      }
+    }
+    if self.lexer.read_target_punctuator(b"{").is_some() {
+      if self.lexer.read_target_punctuator(b"}").is_none() {
+        loop {
+          if self.js_import_specifier_member().is_none() {
+            break;
+          }
+          if self.lexer.read_target_punctuator(b",").is_none() {
+            break;
+          }
+        }
+        self.lexer.read_target_punctuator(b"}")?;
+      }
+    }
+    if default {
+      Some(())
+    } else {
+      None
+    }
+  }
+
+  pub fn js_import_specifier_member(&mut self) -> Option<()> {
+    let mut default = false;
+    if self.lexer.read_identifier().is_some() {
+    } else if let Some(Span { start, end }) = self.lexer.read_keyword() {
+      let word = &self.lexer.bytes[start..end];
+      if word != b"default" {
+        return None;
+      }
+      default = true;
+    } else {
+      return None;
+    }
+    if let Some(Span { start, end }) = self.lexer.read_identifier() {
+      let word = &self.lexer.bytes[start..end];
+      if word != b"as" {
+        return None;
+      }
+      self.lexer.read_identifier()?;
+    } else if default {
+      return None;
+    }
+    Some(())
+  }
+
+  pub fn js_export(&mut self) -> Option<()> {
+    if let Some(Span { start, end }) = self.lexer.read_keyword() {
+      let word = &self.lexer.bytes[start..end];
+      if word != b"var" && word != b"let" && word != b"const" {
+        return None;
+      }
+      self.lexer.read_target_punctuator(b"=")?;
+      self.js_expression()?;
+      return Some(());
+    }
+    self.js_import()
+  }
+
   pub fn jsx_element(&mut self, opened: bool) -> Option<JSXElement> {
     if !opened {
       self.lexer.read_target_punctuator(b"<")?;
@@ -48,7 +152,7 @@ impl<'a> JSXParser<'a> {
   fn jsx_tag(&mut self) -> Option<String> {
     let mut tag = String::new();
     loop {
-      if let Some(JSToken::Identifier(Span { start, end })) = self.lexer.read_identifier() {
+      if let Some(Span { start, end }) = self.lexer.read_identifier() {
         tag.push_str(&self.source[start..end]);
         if let Some(JSToken::Punctuator(Span { start, end })) =
           self.lexer.read_target_punctuator(b".")
@@ -72,7 +176,7 @@ impl<'a> JSXParser<'a> {
     loop {
       if let Some(attr) = self.jsx_spread_attr() {
         attributes.push(attr);
-      } else if let Some(JSToken::Identifier(id_span)) = self.lexer.read_identifier() {
+      } else if let Some(id_span) = self.lexer.read_identifier() {
         if self.lexer.read_target_punctuator(b"=").is_none() {
           attributes.push(JSXAttr::KeyTrueValue { key: id_span });
         } else if let Some(JSToken::String(string_span)) = self.lexer.read_string_literal() {
@@ -153,7 +257,7 @@ impl<'a> JSXParser<'a> {
     let mut segments = vec![];
     if let Some(spread_segments) = self.js_spread_expression() {
       return Some(spread_segments);
-    } else if let Some(JSToken::Identifier(span)) = self.lexer.read_identifier() {
+    } else if let Some(span) = self.lexer.read_identifier() {
       segments.push(JSXExpressionSegment::JS(span));
       if let Some(JSToken::Punctuator(span)) = self.lexer.read_target_punctuator(b":") {
         segments.push(JSXExpressionSegment::JS(span));
@@ -321,7 +425,7 @@ impl<'a> JSXParser<'a> {
 
 #[test]
 fn test_parse_jsx_element() {
-  let cases = vec!["<div a={{b: true ? '1' : 3}}></div>"];
+  let cases = vec!["<div a={{b: true ? '1' : 3}}><a></a>222</div>"];
   let mut results = vec![];
   for case in &cases {
     let spans = vec![Span {
@@ -330,6 +434,21 @@ fn test_parse_jsx_element() {
     }];
     let mut parser = JSXParser::new(case, case.as_bytes(), &spans);
     results.push(parser.jsx_element(false));
+  }
+  insta::assert_yaml_snapshot!(results);
+}
+
+#[test]
+fn test_parse_import_export() {
+  let cases = vec!["import React from 'react';\nmport Vue from 'vue'"];
+  let mut results = vec![];
+  for case in &cases {
+    let spans = vec![Span {
+      start: 0,
+      end: case.len(),
+    }];
+    let mut parser = JSXParser::new(case, case.as_bytes(), &spans);
+    results.push(parser.js_import_export());
   }
   insta::assert_yaml_snapshot!(results);
 }

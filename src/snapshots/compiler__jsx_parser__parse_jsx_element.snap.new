@@ -31,5 +31,12 @@ expression: results
           - JS:
               start: 26
               end: 27
-  children: []
+  children:
+    - Element:
+        tag: a
+        attributes: []
+        children: []
+    - Text:
+        start: 36
+        end: 39
 

@@ -52,7 +52,7 @@ impl<'source> BlockParser<'source> {
           }) = blocks.last_mut()
           {
             span.end = end;
-            raws.push(next_raws.pop().unwrap());
+            raws.append(&mut next_raws);
           } else {
             blocks.push(Token {
               value: BlockToken::Paragraph { raws: next_raws },
@@ -259,6 +259,21 @@ impl<'source> BlockParser<'source> {
       value: BlockToken::Paragraph {
         raws: vec![Span { start, end }],
       },
+      span: Span { start, end },
+    };
+  }
+
+  fn scan_paragraph(&mut self) -> Token<BlockToken> {
+    let bytes = self.document.bytes();
+    let start = self.document.start();
+    let (line_size, _) = one_line(bytes);
+    let end = self.document.forward(line_size);
+    let mut raws = vec![Span { start, end }];
+    if let Some(_) = single_char(bytes, b'<') {
+      
+    }
+    return Token {
+      value: BlockToken::Paragraph { raws },
       span: Span { start, end },
     };
   }
