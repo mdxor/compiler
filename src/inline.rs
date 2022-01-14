@@ -1,9 +1,12 @@
 use crate::input::*;
+use crate::jsx_parser::*;
 use crate::lexer::*;
 use crate::token::*;
 use std::collections::VecDeque;
+use std::str;
 
 pub struct InlineParser<'a> {
+  source: &'a str,
   bytes: &'a [u8],
   raws: &'a Vec<Span>,
   special_bytes: [bool; 256],
@@ -20,7 +23,7 @@ pub struct InlineParser<'a> {
 }
 
 impl<'a> InlineParser<'a> {
-  pub fn new(bytes: &'a [u8], raws: &'a Vec<Span>) -> Self {
+  pub fn new(source: &'a str, bytes: &'a [u8], raws: &'a Vec<Span>) -> Self {
     let mut special_bytes = [false; 256];
     let specials = [b'*', b'_', b'~', b'[', b']', b'`', b'<', b'!', b'\r', b'\n'];
     for &byte in &specials {
@@ -28,6 +31,7 @@ impl<'a> InlineParser<'a> {
     }
     let pos = if raws.len() > 0 { raws[0].start } else { 0 };
     Self {
+      source,
       bytes,
       raws,
       special_bytes,
@@ -329,7 +333,7 @@ impl<'a> InlineParser<'a> {
         return false;
       }
       b'<' => {
-        if let Some(size) = uri(&raw_bytes[start..]) {
+        if let Some(size) = uri(bytes) {
           self.maybe_tokens.push_back(Token {
             value: InlineToken::AutoLink(false),
             span: Span {
@@ -339,7 +343,25 @@ impl<'a> InlineParser<'a> {
           });
           return self.forward_pos(size);
         } else {
-          return false;
+          let spans = VecDeque::from(vec![Span {
+            start: self.pos,
+            end: raw.end,
+          }]);
+          let mut parser = JSXParser::new(self.source, self.bytes, &spans);
+          if let Some((element, end, _)) = parser.jsx() {
+            let span = Span {
+              start: self.pos,
+              end,
+            };
+            self.forward_pos(end - self.pos);
+            self.maybe_tokens.push_back(Token {
+              value: InlineToken::JSX(element),
+              span,
+            });
+            true
+          } else {
+            false
+          }
         }
       }
       b'\r' | b'\n' => {

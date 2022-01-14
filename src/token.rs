@@ -144,6 +144,7 @@ pub enum InlineToken {
   HardBreak,
   // is email
   AutoLink(bool),
+  JSX(JSXElement),
 }
 
 #[derive(Eq, PartialEq, Debug)]

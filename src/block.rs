@@ -5,6 +5,7 @@ use crate::lexer::*;
 use crate::token::*;
 use std::collections::VecDeque;
 use std::mem::replace;
+use std::str;
 
 pub struct BlockParser<'source> {
   source: &'source str,
@@ -272,14 +273,7 @@ impl<'source> BlockParser<'source> {
       };
     }
     // TODO: lind definition, table, jsx, fenced code, indented code
-    let (line_size, _) = one_line(bytes);
-    let end = self.document.forward(line_size);
-    return Token {
-      value: BlockToken::Paragraph {
-        raws: vec![Span { start, end }],
-      },
-      span: Span { start, end },
-    };
+    self.scan_paragraph_like()
   }
 
   fn scan_paragraph_like(&mut self) -> Token<BlockToken> {
@@ -296,7 +290,7 @@ impl<'source> BlockParser<'source> {
         if let Some(size) = self.interrupt_continuous_block() {
           self.document.forward(size);
           let start = self.document.start();
-          let (line_size, _) = one_line(bytes);
+          let (line_size, _) = one_line(self.document.bytes());
           let end = self.document.forward(line_size);
           let span = Span { start, end };
           raws_deque.push_back(span);
@@ -307,7 +301,7 @@ impl<'source> BlockParser<'source> {
       let mut raws: Vec<Span> = vec![];
       while !raws_deque.is_empty() {
         let mut parser = JSXParser::new(self.source, self.document.bytes, &raws_deque);
-        if let Some((element, end, mut index)) = parser.jsx() {
+        if let Some((element, end, index)) = parser.jsx() {
           if !raws.is_empty() {
             let span = Span {
               start: raws.first().unwrap().start,
@@ -329,6 +323,18 @@ impl<'source> BlockParser<'source> {
         } else {
           raws.push(raws_deque.pop_front().unwrap());
         }
+      }
+      if !raws.is_empty() {
+        let span = Span {
+          start: raws.first().unwrap().start,
+          end: raws.last().unwrap().end,
+        };
+        tokens.push_back(Token {
+          value: BlockToken::Paragraph {
+            raws: replace(&mut raws, vec![]),
+          },
+          span,
+        })
       }
       let token = tokens.pop_front().unwrap();
       self.tmp_tokens = tokens;
@@ -412,6 +418,7 @@ impl<'source> BlockParser<'source> {
     if atx_heading_start(bytes).is_none()
       && eol(bytes).is_none()
       && bytes[0] != b'>'
+      && list_item_start(bytes).is_none()
       && thematic_break(bytes).is_none()
       && setext_heading(bytes).is_none()
       && open_fenced_code(bytes).is_none()

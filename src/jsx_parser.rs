@@ -432,7 +432,7 @@ impl<'a> JSXParser<'a> {
 
 #[test]
 fn test_parse_jsx_element() {
-  let cases = vec!["<div a={{b: true ? '1' : 3}}><a></a>222</div>"];
+  let cases = vec!["<><div test={true}></div></>\n"];
   let mut results = vec![];
   for case in &cases {
     let spans = VecDeque::from(vec![Span {
@@ -440,7 +440,7 @@ fn test_parse_jsx_element() {
       end: case.len(),
     }]);
     let mut parser = JSXParser::new(case, case.as_bytes(), &spans);
-    results.push(parser.jsx_element(false));
+    results.push(parser.jsx());
   }
   insta::assert_yaml_snapshot!(results);
 }

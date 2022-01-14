@@ -16,7 +16,7 @@
         const res = await fetch("/benchmark/test.md")
         const source = await res.text()
 
-        let times = 3000
+        let times = 1000
         let now = performance.now()
         for (let i = 0; i < times; i++) {
           parse(source)

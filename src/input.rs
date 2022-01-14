@@ -118,7 +118,7 @@ pub fn eol(bytes: &[u8]) -> Option<(&[u8], usize)> {
   }
 }
 
-// rest, size, size without eol
+// size, size without eol
 pub fn one_line(bytes: &[u8]) -> (usize, usize) {
   let (bytes, without_eol_size) = take_while(bytes, |c| c != b'\r' && c != b'\n');
   let (bytes, eol_size) = eol(bytes).unwrap();
