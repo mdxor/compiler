@@ -25,11 +25,18 @@ impl<'source> BlockParser<'source> {
   }
 
   pub fn parse(&mut self) -> AST<Token<BlockToken>> {
+    let spans = VecDeque::from(vec![Span {
+      start: 0,
+      end: self.source.len(),
+    }]);
+    let mut parser = JSXParser::new(self.source, self.document.bytes, &spans);
+    let import_export_size = parser.js_import_export();
+    self.document.forward_to(import_export_size);
     let mut blocks = self.scan_blocks();
     AST {
       children: blocks,
       span: Span {
-        start: 0,
+        start: import_export_size,
         end: self.source.len(),
       },
     }

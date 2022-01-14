@@ -13,8 +13,8 @@ impl<'a> JSXParser<'a> {
     Self { source, lexer }
   }
 
-  pub fn js_import_export(&mut self) -> Option<usize> {
-    let mut size: Option<usize> = None;
+  pub fn js_import_export(&mut self) -> usize {
+    let mut size: usize = 0;
     loop {
       if let Some(span) = self.lexer.read_keyword() {
         let word = &self.lexer.bytes[span.start..span.end];
@@ -31,7 +31,7 @@ impl<'a> JSXParser<'a> {
         }
         if self.lexer.read_separator().is_some() {
           if let Some(pos) = self.lexer.finish_js() {
-            size = Some(pos);
+            size = pos;
           }
           continue;
         }

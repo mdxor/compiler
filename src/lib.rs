@@ -9,8 +9,6 @@ mod input;
 mod jsx;
 mod jsx_lexer;
 mod jsx_parser;
-#[cfg(test)]
-mod jsx_test;
 mod lexer;
 mod token;
 use crate::block::*;
@@ -28,6 +26,7 @@ pub fn parse(source: &str) -> String {
 #[test]
 fn test_parse() {
   let source = r#"
+import React from "react";
 # ti`tle`
 this is a ~~paragraph~~
 > 123321

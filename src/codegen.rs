@@ -43,6 +43,10 @@ impl<'a> Codegen<'a> {
   }
 
   pub fn gen(&mut self, ast: &AST<Token<BlockToken>>) {
+    let block_start = ast.span.start;
+    if block_start > 0 {
+      self.write(&self.source[..block_start]);
+    }
     self.gen_blocks("_jsxRuntime.Fragment", &ast.children);
   }
 
