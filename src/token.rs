@@ -82,7 +82,7 @@ pub enum BlockToken {
     raws: Vec<Span>,
     level: HeadingLevel,
   },
-  IndentedCode,
+  IndentedCode(Vec<Span>),
   BlankLine,
   ThematicBreak,
   BlockQuote {
@@ -91,7 +91,7 @@ pub enum BlockToken {
   },
   FencedCode {
     meta_span: Span,
-    codes: Vec<Span>,
+    code_spans: Vec<Span>,
   },
   List {
     ch: u8,

@@ -46,12 +46,13 @@ impl<'source> BlockParser<'source> {
   fn scan_blocks(&mut self) -> Vec<Token<BlockToken>> {
     let mut blocks = vec![];
     let level = self.spine.len();
+    let mut is_prev_paragraph = false;
     while self.document.start() < self.source.len() {
       if level != self.spine.len() {
         break;
       }
-      let block = self.scan_block();
-      self.process_block(&mut blocks, block);
+      let block = self.scan_block(is_prev_paragraph);
+      is_prev_paragraph = self.process_block(&mut blocks, block);
       while !self.tmp_tokens.is_empty() {
         let block = self.tmp_tokens.pop_front().unwrap();
         self.process_block(&mut blocks, block);
@@ -60,7 +61,11 @@ impl<'source> BlockParser<'source> {
     blocks
   }
 
-  fn process_block(&mut self, blocks: &mut Vec<Token<BlockToken>>, block: Token<BlockToken>) {
+  fn process_block(
+    &mut self,
+    blocks: &mut Vec<Token<BlockToken>>,
+    block: Token<BlockToken>,
+  ) -> bool {
     match block {
       Token {
         value: BlockToken::Paragraph {
@@ -82,6 +87,7 @@ impl<'source> BlockParser<'source> {
             span,
           });
         }
+        return true;
       }
       Token {
         value: BlockToken::SetextHeading { level, raws },
@@ -119,6 +125,7 @@ impl<'source> BlockParser<'source> {
         blocks.push(block);
       }
     }
+    false
   }
 
   // TODO: indent
@@ -157,9 +164,14 @@ impl<'source> BlockParser<'source> {
     blocks
   }
 
-  fn scan_block(&mut self) -> Token<BlockToken> {
+  fn scan_block(&mut self, is_prev_paragraph: bool) -> Token<BlockToken> {
     self.document.spaces0();
     if let Some(block) = self.scan_blank_line() {
+      self.finish_leaf_block();
+      return block;
+    }
+    if !is_prev_paragraph && self.document.spaces() >= 4 {
+      let block = self.scan_indented_code();
       self.finish_leaf_block();
       return block;
     }
@@ -182,17 +194,78 @@ impl<'source> BlockParser<'source> {
     })
   }
 
-  fn scan_fenced_code(&mut self) -> Token<BlockToken> {
-    Token {
-      value: BlockToken::Paragraph { raws: vec![] },
-      span: Span { start: 0, end: 0 },
+  fn scan_fenced_code(&mut self) -> Option<Token<BlockToken>> {
+    let bytes = self.document.bytes();
+    let start = self.document.start();
+    let (size, repeat, meta_size) = open_fenced_code(bytes)?;
+    let ch = bytes[0];
+    let meta_span = Span {
+      start: start + repeat,
+      end: start + repeat + meta_size,
+    };
+    let mut code_spans = vec![];
+    self.document.forward(size);
+    loop {
+      if let Some(size) = self.continue_container() {
+        self.document.forward(size);
+        if let Some(size) = close_fenced_code(self.document.bytes(), ch, repeat) {
+          self.document.forward(size);
+          break;
+        }
+        println!("222");
+        let (size, _) = one_line(self.document.bytes());
+        code_spans.push(Span {
+          start: self.document.start(),
+          end: self.document.forward(size),
+        });
+      } else {
+        break;
+      }
     }
+    Some(Token {
+      value: BlockToken::FencedCode {
+        meta_span,
+        code_spans,
+      },
+      span: Span {
+        start,
+        end: self.document.start(),
+      },
+    })
   }
 
   fn scan_indented_code(&mut self) -> Token<BlockToken> {
+    let start = self.document.start();
+    let mut spans = vec![];
+    let indent = self.document.spaces();
+    let (size, _) = one_line(self.document.bytes());
+    spans.push(Span {
+      start: start + indent,
+      end: self.document.forward(size),
+    });
+    loop {
+      if let Some(container_size) = self.continue_container() {
+        let bytes = self.document.bytes();
+        let (bytes, spaces) = spaces0(&bytes[container_size..]);
+        if spaces < 4 || eol(bytes).is_some() {
+          break;
+        }
+        let consumed_spaces = if spaces <= indent { spaces } else { indent };
+        let (line_size, _) = one_line(bytes);
+        let start = self.document.start() + consumed_spaces;
+        let end = self.document.start() + spaces + line_size;
+        spans.push(Span { start, end });
+        self.document.forward_to(end);
+      } else {
+        break;
+      }
+    }
     Token {
-      value: BlockToken::Paragraph { raws: vec![] },
-      span: Span { start: 0, end: 0 },
+      value: BlockToken::IndentedCode(spans),
+      span: Span {
+        start,
+        end: self.document.start(),
+      },
     }
   }
 
@@ -272,7 +345,10 @@ impl<'source> BlockParser<'source> {
         span: Span { start, end },
       };
     }
-    // TODO: lind definition, table, jsx, fenced code, indented code
+    if let Some(block) = self.scan_fenced_code() {
+      return block;
+    }
+    // TODO: lind definition, table
     self.scan_paragraph_like()
   }
 
@@ -287,7 +363,7 @@ impl<'source> BlockParser<'source> {
     raws_deque.push_back(span);
     if let Some(_) = single_char(bytes, b'<') {
       loop {
-        if let Some(size) = self.interrupt_continuous_block() {
+        if let Some(size) = self.continue_paragraph_like() {
           self.document.forward(size);
           let start = self.document.start();
           let (line_size, _) = one_line(self.document.bytes());
@@ -350,14 +426,14 @@ impl<'source> BlockParser<'source> {
 
   fn finish_leaf_block(&mut self) {
     self.last_leaf_end = self.document.start();
-    let (size, level) = self.continue_container();
+    let (size, level) = self.resume_container();
     self.document.forward(size);
     while level < self.spine.len() {
       self.spine.pop();
     }
   }
 
-  fn continue_container(&mut self) -> (usize, usize) {
+  fn resume_container(&mut self) -> (usize, usize) {
     let mut spine_level = 0;
     let mut size = 0;
     let mut offset = 0;
@@ -397,24 +473,32 @@ impl<'source> BlockParser<'source> {
     (size, spine_level)
   }
 
-  // table, link def
-  fn interrupt_continuous_block(&mut self) -> Option<usize> {
-    let (size, level) = self.continue_container();
+  fn continue_container(&mut self) -> Option<usize> {
+    if self.source.len() <= self.document.start() {
+      return None;
+    }
+    let (size, level) = self.resume_container();
     if level == self.spine.len() {
       self.document.reset_spaces();
-      if !self.interrupt_paragraph(size) {
-        return Some(size);
-      }
+      Some(size)
+    } else {
+      None
     }
-    None
+  }
+
+  // table, link def
+  fn continue_paragraph_like(&mut self) -> Option<usize> {
+    let size = self.continue_container()?;
+    if !self.interrupt_paragraph(size) {
+      Some(size)
+    } else {
+      None
+    }
   }
 
   fn interrupt_paragraph(&mut self, offset: usize) -> bool {
     let bytes = &self.document.bytes()[offset..];
-    let (bytes, spaces) = spaces0(bytes);
-    if spaces >= 4 {
-      return true;
-    }
+    let (bytes, _) = spaces0(bytes);
     if atx_heading_start(bytes).is_none()
       && eol(bytes).is_none()
       && bytes[0] != b'>'

@@ -36,6 +36,12 @@ this is a ~~paragraph~~
 
 - list item 1
 - list item2
+
+```
+22
+```
+
+    let a = 11;
 "#;
   println!("{}", parse(source));
 }

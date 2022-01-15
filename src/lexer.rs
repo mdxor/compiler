@@ -10,7 +10,7 @@ pub fn atx_heading_start(bytes: &[u8]) -> Option<(usize, usize)> {
 // size, repeat size, meta size
 pub fn open_fenced_code(bytes: &[u8]) -> Option<(usize, usize, usize)> {
   if let Some((bytes, repeat)) = ch_repeat_min(bytes, b'`', 3) {
-    let (bytes, meta_size) = take_while(bytes, |c| c != b'`');
+    let (bytes, meta_size) = take_while(bytes, |c| c != b'`' && c != b'\r' && c != b'\n');
     let (_, eol_size) = eol(bytes)?;
     return Some((repeat + meta_size + eol_size, repeat, meta_size));
   } else {
@@ -20,13 +20,13 @@ pub fn open_fenced_code(bytes: &[u8]) -> Option<(usize, usize, usize)> {
   }
 }
 
-pub fn close_fenced_code(bytes: &[u8]) -> Option<(usize, usize)> {
-  if let Some((bytes, repeat)) = ch_repeat_min(bytes, b'`', 3) {
-    Some((repeat + spaces_eol(bytes)?.1, repeat))
-  } else {
-    let (bytes, repeat) = ch_repeat_min(bytes, b'~', 3)?;
-    Some((repeat + spaces_eol(bytes)?.1, repeat))
-  }
+pub fn close_fenced_code(bytes: &[u8], ch: u8, repeat: usize) -> Option<usize> {
+  let len = bytes.len();
+  let (bytes, _) = ch_repeat_max(bytes, b' ', 3)?;
+  let (bytes, _) = ch_repeat_min(bytes, ch, repeat)?;
+  let (bytes, _) = spaces0(bytes);
+  let (bytes, _) = eol(bytes)?;
+  Some(len - bytes.len())
 }
 // size, level
 pub fn block_quote(bytes: &[u8]) -> Option<(usize, usize)> {

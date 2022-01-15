@@ -77,7 +77,7 @@ impl<'a> Codegen<'a> {
     self.write_jsx_end(jsxs);
   }
 
-  fn gen_leaf_block(&mut self, tag: &str, raws: &Vec<Span>) {
+  fn gen_raws(&mut self, tag: &str, raws: &Vec<Span>) {
     let mut inline_parser = InlineParser::new(self.source, self.bytes, raws);
     let inlines = inline_parser.parse();
     self.gen_inlines_with_tag(tag, &inlines.children);
@@ -236,13 +236,13 @@ impl<'a> Codegen<'a> {
   fn gen_block(&mut self, block: &Token<BlockToken>, jsxs: bool) {
     match &block.value {
       BlockToken::ATXHeading { level, raws } => {
-        self.gen_leaf_block(level.to_str(), raws);
+        self.gen_raws(level.to_str(), raws);
       }
       BlockToken::SetextHeading { level, raws } => {
-        self.gen_leaf_block(level.to_str(), raws);
+        self.gen_raws(level.to_str(), raws);
       }
       BlockToken::Paragraph { raws } => {
-        self.gen_leaf_block("p", raws);
+        self.gen_raws("p", raws);
       }
       BlockToken::BlockQuote { level, blocks } => {
         self.gen_blocks("blockquote", blocks);
@@ -253,10 +253,28 @@ impl<'a> Codegen<'a> {
       BlockToken::ListItem { blocks, .. } => {
         self.gen_blocks("li", blocks);
       }
-      BlockToken::FencedCode { meta_span, codes } => {
+      BlockToken::FencedCode {
+        meta_span,
+        code_spans,
+      } => {
         self.write_non_attrs_jsx_start("pre", false);
         self.write_non_attrs_jsx_start("code", false);
-        self.gen_spans(codes);
+        if code_spans.is_empty() {
+          self.write("null");
+        } else {
+          self.gen_spans(code_spans);
+        }
+        self.write_jsx_end(false);
+        self.write_jsx_end(false);
+      }
+      BlockToken::IndentedCode(code_spans) => {
+        self.write_non_attrs_jsx_start("pre", false);
+        self.write_non_attrs_jsx_start("code", false);
+        if code_spans.is_empty() {
+          self.write("null");
+        } else {
+          self.gen_spans(code_spans);
+        }
         self.write_jsx_end(false);
         self.write_jsx_end(false);
       }
