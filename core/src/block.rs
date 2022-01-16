@@ -212,7 +212,6 @@ impl<'source> BlockParser<'source> {
           self.document.forward(size);
           break;
         }
-        println!("222");
         let (size, _) = one_line(self.document.bytes());
         code_spans.push(Span {
           start: self.document.start(),

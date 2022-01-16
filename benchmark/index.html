@@ -5,32 +5,11 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Benchmark</title>
+    <script src="https://cdn.jsdelivr.net/npm/lodash/lodash.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/platform/platform.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/benchmark/benchmark.js"></script>
   </head>
   <body>
-    <script type="module">
-      import { compileSync } from "https://jspm.dev/@mdx-js/mdx@next"
-      import init, { parse } from "../pkg/compiler.js"
-
-      const main = async () => {
-        await init()
-        const res = await fetch("/benchmark/test.md")
-        const source = await res.text()
-
-        let times = 1000
-        let now = performance.now()
-        for (let i = 0; i < times; i++) {
-          parse(source)
-        }
-        const wasmTime = performance.now() - now
-
-        now = performance.now()
-        for (let i = 0; i < times; i++) {
-          compileSync(source)
-        }
-        const mdxTime = performance.now() - now
-        console.log("speed: ", mdxTime / wasmTime, "x")
-      }
-      main()
-    </script>
+    <script type="module" src="./browser.js"></script>
   </body>
 </html>

@@ -1,0 +1,21 @@
+[package]
+edition = "2021"
+name = "napi"
+version = "0.0.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# Default enable napi4 feature, see https://nodejs.org/api/n-api.html#node-api-version-matrix
+napi = { version = "2.0.3", default-features = false, features = ["napi4"] }
+napi-derive = "2.0.7"
+compiler-core = { path = "../core" }
+
+[build-dependencies]
+napi-build = "1.2.1"
+
+[profile.release]
+lto = true
+
+cargo-features = ["edition2021"]

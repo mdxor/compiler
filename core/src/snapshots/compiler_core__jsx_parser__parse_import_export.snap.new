@@ -1,0 +1,8 @@
+---
+source: core/src/jsx_parser.rs
+assertion_line: 463
+expression: results
+
+---
+- 31
+

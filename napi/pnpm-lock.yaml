@@ -1,0 +1,17 @@
+lockfileVersion: 5.3
+
+specifiers:
+  '@napi-rs/cli': ^2.4.0
+
+devDependencies:
+  '@napi-rs/cli': registry.npmjs.org/@napi-rs/cli/2.4.0
+
+packages:
+
+  registry.npmjs.org/@napi-rs/cli/2.4.0:
+    resolution: {integrity: sha512-rq4ivqWY7KWG104gRxTmWyehE4eUxJ/mBJx81r3PeghtLZ11NpJNuvF9kSvsol8hTjJQ7CWlF2plQ20I9rMOng==, registry: https://registry.yarnpkg.com/, tarball: https://registry.npmjs.org/@napi-rs/cli/-/cli-2.4.0.tgz}
+    name: '@napi-rs/cli'
+    version: 2.4.0
+    engines: {node: '>= 10'}
+    hasBin: true
+    dev: true

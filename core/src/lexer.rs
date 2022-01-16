@@ -223,8 +223,8 @@ pub fn link_url(bytes: &[u8], offset: usize) -> Option<(usize, Span)> {
       return Some((
         url_size + 1,
         Span {
-          start: offset,
-          end: offset + url_size,
+          start: offset + 1,
+          end: offset + 1 + url_size,
         },
       ));
     }
@@ -238,7 +238,6 @@ where
   F: FnMut() -> Option<(&'a [u8], usize)>,
 {
   let (bytes, mut raw_start) = get_raw_span()?;
-  single_char(bytes, b'(')?;
   let (url_size, url_span) = link_url(bytes, raw_start)?;
   let mut bytes = &bytes[url_size..];
   let mut title: Vec<Span> = vec![];

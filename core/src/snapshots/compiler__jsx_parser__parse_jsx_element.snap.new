@@ -1,5 +1,6 @@
 ---
-source: src/jsx_parser.rs
+source: core/src/jsx_parser.rs
+assertion_line: 448
 expression: results
 
 ---

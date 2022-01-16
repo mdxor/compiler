@@ -126,7 +126,7 @@ impl<'a> InlineParser<'a> {
         let bytes = &self.bytes[span.start..span.end];
         if index == self.index {
           let bytes = &self.bytes[self.pos + 1..span.end];
-          return Some((bytes, self.pos));
+          return Some((bytes, self.pos + 1));
         } else {
           return Some((bytes, span.start));
         }
@@ -143,6 +143,7 @@ impl<'a> InlineParser<'a> {
       });
       self.index = index;
       self.pos = pos + 1;
+      self.text_start = self.pos;
       return Some((url_span, title_spans));
     }
     None
@@ -197,7 +198,7 @@ impl<'a> InlineParser<'a> {
   }
 
   fn match_inlink_delimiter(&mut self) {
-    while self.link_delimiters.is_empty() {
+    while !self.link_delimiters.is_empty() {
       let token_index = self.link_delimiters.pop_front().unwrap();
       self.match_delimiter(token_index);
     }

@@ -110,6 +110,7 @@ impl<'a> JSXParser<'a> {
       if word != b"var" && word != b"let" && word != b"const" {
         return None;
       }
+      self.lexer.read_identifier()?;
       self.lexer.read_target_punctuator(b"=")?;
       self.js_expression()?;
       return Some(());
@@ -161,9 +162,7 @@ impl<'a> JSXParser<'a> {
     loop {
       if let Some(Span { start, end }) = self.lexer.read_identifier() {
         tag.push_str(&self.source[start..end]);
-        if let Some(JSToken::Punctuator(Span { start, end })) =
-          self.lexer.read_target_punctuator(b".")
-        {
+        if let Some(Span { start, end }) = self.lexer.read_target_punctuator(b".") {
           tag.push_str(&self.source[start..end]);
         } else {
           break;
@@ -186,7 +185,7 @@ impl<'a> JSXParser<'a> {
       } else if let Some(id_span) = self.lexer.read_identifier() {
         if self.lexer.read_target_punctuator(b"=").is_none() {
           attributes.push(JSXAttr::KeyTrueValue { key: id_span });
-        } else if let Some(JSToken::String(string_span)) = self.lexer.read_string_literal() {
+        } else if let Some(string_span) = self.lexer.read_string_literal() {
           attributes.push(JSXAttr::KeyLiteralValue {
             key: id_span,
             value: string_span,
@@ -216,7 +215,7 @@ impl<'a> JSXParser<'a> {
   fn jsx_children(&mut self) -> Option<Vec<JSX>> {
     let mut children = vec![];
     loop {
-      if let Some(JSToken::Text(span)) = self.lexer.read_jsx_text() {
+      if let Some(span) = self.lexer.read_jsx_text() {
         children.push(JSX::Text(span));
       } else if let Some(segments) = self.jsx_expression() {
         children.push(JSX::Expression(segments));
@@ -247,16 +246,15 @@ impl<'a> JSXParser<'a> {
         segments.append(&mut spread_segments);
       } else {
         segments.append(&mut self.js_expression()?);
-        if let Some(JSToken::Punctuator(span)) = self.lexer.read_target_punctuator(b",") {
+        if let Some(span) = self.lexer.read_target_punctuator(b",") {
           segments.push(JSXExpressionSegment::JS(span));
         } else {
           break;
         }
       }
     }
-    if let JSToken::Punctuator(span) = self.lexer.read_target_punctuator(b"]")? {
-      segments.push(JSXExpressionSegment::JS(span));
-    }
+    let span = self.lexer.read_target_punctuator(b"]")?;
+    segments.push(JSXExpressionSegment::JS(span));
     Some(segments)
   }
 
@@ -266,16 +264,15 @@ impl<'a> JSXParser<'a> {
       return Some(spread_segments);
     } else if let Some(span) = self.lexer.read_identifier() {
       segments.push(JSXExpressionSegment::JS(span));
-      if let Some(JSToken::Punctuator(span)) = self.lexer.read_target_punctuator(b":") {
+      if let Some(span) = self.lexer.read_target_punctuator(b":") {
         segments.push(JSXExpressionSegment::JS(span));
         segments.append(&mut self.js_expression()?);
       }
-    } else if let Some(JSToken::Identifier(span)) = self.lexer.read_string_literal() {
+    } else if let Some(span) = self.lexer.read_string_literal() {
       segments.push(JSXExpressionSegment::JS(span));
-      if let JSToken::Punctuator(span) = self.lexer.read_target_punctuator(b":")? {
-        segments.push(JSXExpressionSegment::JS(span));
-        segments.append(&mut self.js_expression()?);
-      }
+      let span = self.lexer.read_target_punctuator(b":")?;
+      segments.push(JSXExpressionSegment::JS(span));
+      segments.append(&mut self.js_expression()?);
     }
     Some(segments)
   }
@@ -284,25 +281,23 @@ impl<'a> JSXParser<'a> {
     let mut segments = vec![];
     loop {
       segments.append(&mut self.js_object_member()?);
-      if let Some(JSToken::Punctuator(span)) = self.lexer.read_target_punctuator(b",") {
+      if let Some(span) = self.lexer.read_target_punctuator(b",") {
         segments.push(JSXExpressionSegment::JS(span));
       } else {
         break;
       }
     }
-    if let JSToken::Punctuator(span) = self.lexer.read_target_punctuator(b"}")? {
-      segments.push(JSXExpressionSegment::JS(span));
-      return Some(segments);
-    }
+    let span = self.lexer.read_target_punctuator(b"}")?;
+    segments.push(JSXExpressionSegment::JS(span));
+    return Some(segments);
     None
   }
 
   fn js_spread_expression(&mut self) -> Option<Vec<JSXExpressionSegment>> {
     let mut segments = vec![];
-    if let JSToken::Punctuator(span) = self.lexer.read_target_punctuator(b"...")? {
-      segments.push(JSXExpressionSegment::JS(span));
-      segments.append(&mut self.js_expression()?);
-    }
+    let span = self.lexer.read_target_punctuator(b"...")?;
+    segments.push(JSXExpressionSegment::JS(span));
+    segments.append(&mut self.js_expression()?);
     Some(segments)
   }
 
@@ -392,7 +387,7 @@ impl<'a> JSXParser<'a> {
         break;
       }
 
-      if let Some(JSToken::Punctuator(span)) = self.lexer.read_target_punctuator(b",") {
+      if let Some(span) = self.lexer.read_target_punctuator(b",") {
         segments.push(JSXExpressionSegment::JS(span));
       } else {
         break;
@@ -403,25 +398,33 @@ impl<'a> JSXParser<'a> {
 
   fn js_child_expression(&mut self) -> Option<Vec<JSXExpressionSegment>> {
     let mut segments = vec![];
-    if let Some(JSToken::Punctuator(span)) = self.lexer.read_mid_punctuator() {
+    if let Some(span) = self.lexer.read_mid_punctuator() {
       let word = &self.lexer.bytes[span.start..span.end];
+      segments.push(JSXExpressionSegment::JS(span));
       match word {
         b"?" => {
           segments.append(&mut self.js_expression()?);
-          self.lexer.read_target_punctuator(b":")?;
+          segments.push(JSXExpressionSegment::JS(
+            self.lexer.read_target_punctuator(b":")?,
+          ));
           segments.append(&mut self.js_expression()?);
         }
         b"(" => {
           segments.append(&mut self.js_arguments()?);
-          self.lexer.read_target_punctuator(b")")?;
+          segments.push(JSXExpressionSegment::JS(
+            self.lexer.read_target_punctuator(b")")?,
+          ));
         }
         b"[" => {
           segments.append(&mut self.js_expression()?);
-          self.lexer.read_target_punctuator(b"]")?;
+          segments.push(JSXExpressionSegment::JS(
+            self.lexer.read_target_punctuator(b"]")?,
+          ));
         }
-        _ => {
-          segments.push(JSXExpressionSegment::JS(span));
+        b"." => {
+          segments.push(JSXExpressionSegment::JS(self.lexer.read_identifier()?));
         }
+        _ => {}
       }
     } else {
       return None;
@@ -447,7 +450,7 @@ fn test_parse_jsx_element() {
 
 #[test]
 fn test_parse_import_export() {
-  let cases = vec!["import React from 'react';\nmport Vue from 'vue'"];
+  let cases = vec!["export const date = Date.now();"];
   let mut results = vec![];
   for case in &cases {
     let spans = VecDeque::from(vec![Span {

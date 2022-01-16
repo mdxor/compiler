@@ -64,15 +64,15 @@ impl<'a> JSXLexer<'a> {
     None
   }
 
-  pub fn read_target_punctuator(&mut self, target: &[u8]) -> Option<JSToken> {
+  pub fn read_target_punctuator(&mut self, target: &[u8]) -> Option<Span> {
     let bytes = self.skip_spaces_newlines()?;
     let len = target.len();
     if bytes.len() >= len {
       if target == &bytes[..len] {
-        return Some(JSToken::Punctuator(Span {
+        return Some(Span {
           start: self.pos,
           end: self.forward(len),
-        }));
+        });
       }
     }
     None
@@ -105,7 +105,8 @@ impl<'a> JSXLexer<'a> {
         end: self.forward(size),
       }));
     }
-    self.read_head_punctuator()
+    let span = self.read_head_punctuator()?;
+    Some(JSToken::Punctuator(span))
   }
 
   pub fn read_identifier(&mut self) -> Option<Span> {
@@ -134,29 +135,29 @@ impl<'a> JSXLexer<'a> {
     return None;
   }
 
-  pub fn read_jsx_text(&mut self) -> Option<JSToken> {
+  pub fn read_jsx_text(&mut self) -> Option<Span> {
     let bytes = self.bytes()?;
     let size = take_while(bytes, |ch| ch != b'{' && ch != b'<').1;
     if size > 1 {
-      Some(JSToken::Text(Span {
+      Some(Span {
         start: self.pos,
         end: self.forward(size),
-      }))
+      })
     } else {
       None
     }
   }
 
-  pub fn read_string_literal(&mut self) -> Option<JSToken> {
+  pub fn read_string_literal(&mut self) -> Option<Span> {
     let bytes = self.skip_spaces_newlines()?;
     let size = string_literal(bytes)?;
-    return Some(JSToken::String(Span {
+    return Some(Span {
       start: self.pos,
       end: self.forward(size),
-    }));
+    });
   }
 
-  pub fn read_head_punctuator(&mut self) -> Option<JSToken> {
+  pub fn read_head_punctuator(&mut self) -> Option<Span> {
     let bytes = self.skip_spaces_newlines()?;
     if let Some(byte) = bytes.get(0) {
       if !byte.is_ascii_punctuation() {
@@ -168,15 +169,15 @@ impl<'a> JSXLexer<'a> {
           return None;
         }
       }
-      return Some(JSToken::Punctuator(Span {
+      return Some(Span {
         start: self.pos,
         end: self.forward(1),
-      }));
+      });
     }
     None
   }
 
-  pub fn read_mid_punctuator(&mut self) -> Option<JSToken> {
+  pub fn read_mid_punctuator(&mut self) -> Option<Span> {
     let bytes = self.skip_spaces_newlines()?;
     if let Some(byte) = bytes.get(0) {
       if !byte.is_ascii_punctuation() {
@@ -195,7 +196,7 @@ impl<'a> JSXLexer<'a> {
             return None;
           }
         }
-        b'?' => {}
+        b'?' | b'.' | b'(' | b'[' => {}
         b'+' | b'-' | b'*' | b'/' => {
           if let Some(b'=') = bytes.get(1) {
             size += 1;
@@ -205,10 +206,10 @@ impl<'a> JSXLexer<'a> {
           return None;
         }
       }
-      return Some(JSToken::Punctuator(Span {
+      return Some(Span {
         start: self.pos,
         end: self.forward(size),
-      }));
+      });
     }
     None
   }

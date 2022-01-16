@@ -65,6 +65,7 @@ impl<'a> Codegen<'a> {
     if block_start > 0 {
       self.write(&self.source[..block_start]);
     }
+    self.write("export default () => ");
     self.gen_blocks("_jsxRuntime.Fragment", &ast.children);
   }
 
@@ -97,7 +98,32 @@ impl<'a> Codegen<'a> {
   }
 
   fn gen_span(&mut self, span: &Span) {
-    self.write(&self.source[span.start..span.end]);
+    let span_start = span.start;
+    let span_end = span.end;
+    let bytes = &self.bytes[span_start..span_end];
+    let mut start = 0;
+    for (i, ch) in bytes.iter().enumerate() {
+      match ch {
+        b'\'' => {
+          self.write_by_start_end(span_start + start, span_start + i);
+          self.write("\\'");
+          start = i + 1;
+        }
+        b'\n' => {
+          self.write_by_start_end(span_start + start, span_start + i);
+          self.write("\\n");
+          start = i + 1;
+        }
+        _ => {}
+      }
+    }
+    self.write_by_start_end(span_start + start, span_end);
+  }
+
+  fn write_by_start_end(&mut self, start: usize, end: usize) {
+    if end > start {
+      self.write(&self.source[start..end]);
+    }
   }
 
   fn gen_spans(&mut self, spans: &Vec<Span>) {
@@ -262,7 +288,9 @@ impl<'a> Codegen<'a> {
         if code_spans.is_empty() {
           self.write("null");
         } else {
+          self.write("'");
           self.gen_spans(code_spans);
+          self.write("'");
         }
         self.write_jsx_end(false);
         self.write_jsx_end(false);
@@ -273,7 +301,9 @@ impl<'a> Codegen<'a> {
         if code_spans.is_empty() {
           self.write("null");
         } else {
+          self.write("'");
           self.gen_spans(code_spans);
+          self.write("'");
         }
         self.write_jsx_end(false);
         self.write_jsx_end(false);
