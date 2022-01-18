@@ -12,3 +12,5 @@ Official Mdx Node.js x 225 ops/sec ±5.25% (83 runs sampled)
 Mdxor Wasm           x 8,181 ops/sec ±7.06% (46 runs sampled)
 Official Mdx Browser x 125 ops/sec ±23.35% (44 runs sampled)
 ```
+
+> [Chinese blog](https://www.bowencodes.com/post/rust-mdx)
