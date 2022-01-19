@@ -1,4 +1,4 @@
-use crate::input::*;
+use crate::lexer::*;
 use crate::token::*;
 pub struct Document<'source> {
   pub bytes: &'source [u8],
